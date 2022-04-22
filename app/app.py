@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response
 
-import helper
+from . import airtable_ingest
 
 app = FastAPI()
 
