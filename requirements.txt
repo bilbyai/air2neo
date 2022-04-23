@@ -1,3 +1,6 @@
-pyairtable
-fastapi
-neo4j
+fastapi ~= 0.75.2
+pyairtable ~= 1.1.0
+neo4j ~= 4.4.2
+pandas ~= 1.4.2
+pyarrow ~= 7.0.0
+numpy ~= 1.22.3
