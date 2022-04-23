@@ -61,7 +61,7 @@ def format_edge_col(col):
     return col.split('__')[0]
 
 def is_airtable_record_id(record: Any) -> bool:
-    """ Checks if a single record is an airtable ID.
+    ''' Checks if a single record is an airtable ID.
     An airtable ID is defined by 3 things:
     1. It is a string.
     2. All characters are alphanumeric.
@@ -72,8 +72,9 @@ def is_airtable_record_id(record: Any) -> bool:
         record (Any): A single record.
 
     Returns:
-        bool: _description_
-    """
+        bool: Returns true if the record is an airtable ID, and false if it is
+        not.
+    '''
     return all((
         isinstance(record, str),
         record.isalnum(),
