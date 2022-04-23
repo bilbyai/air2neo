@@ -119,9 +119,16 @@ def _split_node_edge(row: Series) -> Series:
     return row
 
 
-def start_ingest():
+def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
     '''
         This function is used to ingest data from Airtable into Neo4j.
+
+        Args:
+            nuke (bool): If true, the Neo4j database will be nuked before
+            ingesting data.
+
+        Returns:
+            None: If everything was OK, it returns None.
     '''
 
     # Retrieve the Airtable reference table
@@ -137,6 +144,9 @@ def start_ingest():
                                   auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
     with driver.session() as session:
+        if nuke:
+            session.run("MATCH (n) DETACH DELETE n")
+
         # Create Nodes
         for table, df in zip(tables, dataframes):
             for _, row in df.iterrows():
