@@ -30,7 +30,7 @@ def keep_col_cond(column_name: str) -> bool:
     return not column_name.startswith('_')
 
 def edge_col_cond(column_name: str) -> bool:
-    """ Checks if a column name is an edge column or a node property column.
+    ''' Checks if a column name is an edge column or a node property column.
 
     Args:
         column_name (str): The name of the column.
@@ -38,10 +38,11 @@ def edge_col_cond(column_name: str) -> bool:
     Returns:
         bool: Returns true if the column is an edge column, and false if it is
         a node property column.
-    """
+    '''
     if not isinstance(column_name, str):
         return False
     return column_name.isupper()
+
 
 def prop_col_cond(column_name: str) -> bool:
     ''' Checks if a column name is a node property column.
