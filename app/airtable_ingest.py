@@ -1,5 +1,6 @@
 import json
 import os
+from time import process_time
 from typing import Any
 
 from neo4j import GraphDatabase
@@ -131,22 +132,23 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
         Returns:
             None: If everything was OK, it returns None.
     '''
+    logger.info("Starting Airtable to Neo4j ingest job.")
+    start_time = process_time()
 
     # Retrieve the Airtable reference table
     ref_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, airtable_ref_table)
     tables = [x['fields']['Name'] for x in ref_table.all()]
 
-    logger.info('Found %s tables in Airtable.', len(tables))
-    logger.info('Tables: %s', tables)
+    logger.info('Found %s tables in Airtable: %s', len(tables), tables)
 
     airtables = [Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, t) for t in tables]
 
     dataframes = []
     for name, table in zip(tables, airtables):
         # download data from airtable
-        logger.info('Downloading table %s from Airtable.', name)
+        logger.info('Downloading table: %s...', name)
         df = DataFrame(table.all())
-        logger.info('Downloaded %s records for table "%s."', len(df), name)
+        logger.info('%s record(s) downloaded for table "%s".', len(df), name)
         df = df.apply(_split_node_edge, axis=1)
         dataframes.append(df)
 
@@ -163,6 +165,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             session.run('MATCH (n) DETACH DELETE n')
 
         # Create Nodes
+        nodes_created_count = 0
         for table, df in zip(tables, dataframes):
             logger.info('Creating nodes for table "%s"...', table)
             for _, row in df.iterrows():
@@ -192,10 +195,14 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
 
                 cypher = '\n'.join(cypher)
 
-                logger.info("Creating node: %s", cypher)
+                logger.debug("Creating node: \n%s", cypher)
                 session.run(cypher)
+                nodes_created_count += 1
+            logger.info('%s nodes created/merged for table "%s".',
+                        nodes_created_count, table)
 
         # Create Edges
+        edges_created_count = 0
         for table, df in zip(tables, dataframes):
             for _, row in df.iterrows():
                 id, props, edges = row['id'], row['props'], row['edges']
@@ -207,7 +214,15 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         cypher.append(f'MERGE (n)-[r:`{k}`]->(m)')
                         cypher = '\n'.join(cypher)
 
-                        logger.info("Creating edge: %s", cypher)
+                        logger.debug("Creating edge: %s", cypher)
                         session.run(cypher)
+                        edges_created_count += 1
+            logger.info('%s edges created/merged for table "%s".',
+                        edges_created_count, table)
 
     driver.close()
+
+    end_time = process_time()
+
+    # TODO something is wrong with the timer
+    logger.info('Ingestion completed in %s seconds.', end_time - start_time)
