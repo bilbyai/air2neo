@@ -44,7 +44,7 @@ def edge_col_cond(column_name: str) -> bool:
     return column_name.isupper()
 
 def prop_col_cond(column_name: str) -> bool:
-    """ Checks if a column name is a node property column.
+    ''' Checks if a column name is a node property column.
 
     Args:
         column_name (str): The name of the column.
@@ -52,10 +52,10 @@ def prop_col_cond(column_name: str) -> bool:
     Returns:
         bool: Returns true if the column is a node property column, and false if
         it is an edge column.
-    """
+    '''
     if not isinstance(column_name, str):
         return False
-    return column_name.islower()
+    return not edge_col_cond(column_name)
 
 
 def format_edge_col(col: str) -> str:
