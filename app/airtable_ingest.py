@@ -81,22 +81,27 @@ def is_airtable_record_id(record: Any) -> bool:
         record.startswith("rec")
     ))
 
-def start_ingest():
 
-    neo4jManager = Neo4jManager(uri=neo4j_uri, auth=(neo4j_username,neo4j_password))
+def _split_node_edge(row: Series) -> Series:
+    # This function is created just to do a df.apply()
+    row['fields'] = {k: v
+                     for k, v in row['fields'].items()
+                     if keep_col_cond(k)}
 
-    ref_table = Table(api_key, base_id, 'Tables')
+    row['edges'] = {format_edge_col(k):v
+                    for k, v in row['fields'].items()
+                    if edge_col_cond(k)}
 
-    tables = [x['fields']['Name'] for x in ref_table.all()]
+    row['props'] = {k: v
+                    for k, v in row['fields'].items()
+                    if prop_col_cond(k)}
 
-    def _split_node_edge(row):
-        # This function is created just to do a df.apply()
-        row['fields'] = {k:v for k,v in row['fields'].items() if keep_col_cond(k)}
-        row['edges'] = {format_edge_col(k):v for k,v in row['fields'].items() if edge_col_cond(k)}
-        row['props'] = {k:v for k,v in row['fields'].items() if prop_col_cond(k)}
+    del row['fields']
+
+    if row['createdTime']:
         del row['createdTime']
-        del row['fields']
-        return row
+
+    return row
 
     for table in tables:
         label = table # neo4j label = table name
