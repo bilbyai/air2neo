@@ -16,7 +16,7 @@ neo4j_password = os.environ['NEO4J_PASSWORD']
 neo4j_uri = os.environ['NEO4J_URI']
 
 def keep_col_cond(column_name: str) -> bool:
-    """ Checks if a column name should be kept.
+    ''' Checks if a column name should be kept.
 
     Args:
         column_name (str): The name of the column.
@@ -24,10 +24,11 @@ def keep_col_cond(column_name: str) -> bool:
     Returns:
         bool: Returns true if the column should be kept, and false if it should
         be discarded.
-    """
+    '''
     if not isinstance(column_name, str):
         return False
     return not column_name.startswith('_')
+
 
 def edge_col_cond(column_name: str) -> bool:
     ''' Checks if a column name is an edge column or a node property column.
