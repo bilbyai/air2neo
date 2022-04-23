@@ -118,22 +118,67 @@ def _split_node_edge(row: Series) -> Series:
 
     return row
 
-    for table in tables:
-        label = table # neo4j label = table name
-        table_airtable = Table(api_key, base_id, table)
-        df = pd.DataFrame(table_airtable.all())
 
-        df = df.apply(_split_node_edge, axis=1)
+def start_ingest():
+    '''
+        This function is used to ingest data from Airtable into Neo4j.
+    '''
 
-        for idx, row in df.iterrows():
-            id = row['id']
-            props = row['props']
-            edges = row['edges']
+    # Retrieve the Airtable reference table
+    ref_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, airtable_ref_table)
+    tables = [x['fields']['Name'] for x in ref_table.all()]
+    airtables = [Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, t) for t in tables]
+    dataframes = [DataFrame(t.all()) for t in airtables]
 
-            # Create node
-            # TODO
+    # Split Nodes and Edges
+    dataframes = [df.apply(_split_node_edge, axis=1) for df in dataframes]
 
-            # Create edges
-            # TODO
+    driver = GraphDatabase.driver(NEO4J_URI,
+                                  auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
+    with driver.session() as session:
+        # Create Nodes
+        for table, df in zip(tables, dataframes):
+            for _, row in df.iterrows():
+                id, props, edges = row['id'], row['props'], row['edges']
 
+                cypher = [f'MERGE (n:{table} {{{airtable_id_col}: "{id}"}})']
+
+                for k,v in props.items():
+                    if isinstance(v, (int, float, bool)):
+                        # if is non-string primitive type
+                        cypher.append(f'SET n.`{k}` = "{v}"')
+
+                    elif isinstance(v, str):
+                        # if is string
+                        v = v.replace('"', '\\"')
+                        cypher.append(f'SET n.`{k}` = "{v}"')
+
+                    elif all((isinstance(v, list), all(isinstance(x, str) for x in v))):
+                        # if is string list
+                        v = [v.replace('"', '\\"') for v in v]
+                        cypher.append(f'SET n.`{k}` = {v}')
+
+                    else:
+                        # dump as JSON
+                        v = json.dumps(v).replace('"', '\\"')
+                        cypher.append(f'SET n.`{k}` = "{v}"')
+
+                cypher = '\n'.join(cypher)
+
+                session.run(cypher)
+
+        # Create Edges
+        for table, df in zip(tables, dataframes):
+            for _, row in df.iterrows():
+                id, props, edges = row['id'], row['props'], row['edges']
+                for k,v in edges.items():
+                    for v_ in v:
+                        cypher = []
+                        cypher.append(f'MATCH (n) WHERE n.{airtable_id_col} = "{id}"')
+                        cypher.append(f'MATCH (m) WHERE m.{airtable_id_col} = "{v_}"')
+                        cypher.append(f'MERGE (n)-[r:`{k}`]->(m)')
+                        cypher = '\n'.join(cypher)
+                        session.run(cypher)
+
+    driver.close()
