@@ -1,3 +1,5 @@
+from typing import Dict
+
 from fastapi import BackgroundTasks, FastAPI
 
 from .airtable_ingest import run_airtable_to_neo4j_ingest_job
@@ -6,7 +8,7 @@ app = FastAPI()
 
 
 @app.get("/", status_code=200)
-def hello() -> str:
+def hello() -> Dict[str, str]:
     ''' default health check endpoint.
 
     Returns:
@@ -16,7 +18,7 @@ def hello() -> str:
 
 
 @app.get("/airtable-ingest")
-async def ingest(background_tasks: BackgroundTasks) -> str:
+async def ingest(background_tasks: BackgroundTasks) -> Dict[str, str]:
     ''' This function is used to ingest data from Airtable into Neo4j.
     Runs in async.
 
@@ -28,7 +30,7 @@ async def ingest(background_tasks: BackgroundTasks) -> str:
 
 
 @app.get("/airtable-nuke-and-ingest")
-async def nuke_and_ingest(background_tasks: BackgroundTasks) -> str:
+async def nuke_and_ingest(background_tasks: BackgroundTasks) -> Dict[str, str]:
     ''' This function is used to nuke the Neo4j database and ingest data from
     Airtable into Neo4j.
     Nuke means drop everything.

@@ -55,8 +55,8 @@ def prop_col_cond(column_name: str) -> bool:
         column_name (str): The name of the column.
 
     Returns:
-        bool: Returns true if the column is a node property column, and false if
-        it is an edge column.
+        bool: Returns true if the column is a node property column, and false 
+        if it is an edge column.
     '''
     if not isinstance(column_name, str):
         return False
@@ -105,7 +105,7 @@ def _split_node_edge(row: Series) -> Series:
                      for k, v in row['fields'].items()
                      if keep_col_cond(k)}
 
-    row['edges'] = {format_edge_col(k):v
+    row['edges'] = {format_edge_col(k): v
                     for k, v in row['fields'].items()
                     if edge_col_cond(k)}
 
@@ -159,7 +159,6 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
     logger.info('Creating Neo4j session...')
     with driver.session() as session:
 
-        
         if nuke:
             logger.info('`nuke` is set to True. Nuking Neo4j database...')
             session.run('MATCH (n) DETACH DELETE n')
@@ -173,7 +172,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
 
                 cypher = [f'MERGE (n:{table} {{{airtable_id_col}: "{id}"}})']
 
-                for k,v in props.items():
+                for k, v in props.items():
                     if isinstance(v, (int, float, bool)):
                         # if is non-string primitive type
                         cypher.append(f'SET n.`{k}` = "{v}"')
@@ -183,7 +182,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         v = v.replace('"', '\\"')
                         cypher.append(f'SET n.`{k}` = "{v}"')
 
-                    elif all((isinstance(v, list), all(isinstance(x, str) for x in v))):
+                    elif all((isinstance(v, list), 
+                              all(isinstance(x, str) for x in v))):
                         # if is string list
                         v = [v.replace('"', '\\"') for v in v]
                         cypher.append(f'SET n.`{k}` = {v}')
@@ -193,10 +193,10 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         v = json.dumps(v).replace('"', '\\"')
                         cypher.append(f'SET n.`{k}` = "{v}"')
 
-                cypher = '\n'.join(cypher)
+                cypher_query = '\n'.join(cypher)
 
-                logger.debug("Creating node: \n%s", cypher)
-                session.run(cypher)
+                logger.debug("Creating node: \n%s", cypher_query)
+                session.run(cypher_query)
                 nodes_created_count += 1
             logger.info('%s nodes created/merged for table "%s".',
                         nodes_created_count, table)
@@ -206,16 +206,18 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
         for table, df in zip(tables, dataframes):
             for _, row in df.iterrows():
                 id, props, edges = row['id'], row['props'], row['edges']
-                for k,v in edges.items():
+                for k, v in edges.items():
                     for v_ in v:
                         cypher = []
-                        cypher.append(f'MATCH (n) WHERE n.{airtable_id_col} = "{id}"')
-                        cypher.append(f'MATCH (m) WHERE m.{airtable_id_col} = "{v_}"')
+                        cypher.append(
+                            f'MATCH (n) WHERE n.{airtable_id_col} = "{id}"')
+                        cypher.append(
+                            f'MATCH (m) WHERE m.{airtable_id_col} = "{v_}"')
                         cypher.append(f'MERGE (n)-[r:`{k}`]->(m)')
-                        cypher = '\n'.join(cypher)
+                        cypher_query = '\n'.join(cypher)
 
-                        logger.debug("Creating edge: %s", cypher)
-                        session.run(cypher)
+                        logger.debug("Creating edge: %s", cypher_query)
+                        session.run(cypher_query)
                         edges_created_count += 1
             logger.info('%s edges created/merged for table "%s".',
                         edges_created_count, table)
