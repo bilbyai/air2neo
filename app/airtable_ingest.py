@@ -6,14 +6,15 @@ from dotmap import DotMap
 from pandas import Series
 from pyairtable import Table
 
-from .neo4j_manager import Neo4jManager
+from .vars import airtable_id_col, airtable_ref_table
 
-api_key = os.environ['AIRTABLE_API_KEY']
-base_id = os.environ['AIRTABLE_BASE_ID']
+AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
+AIRTABLE_BASE_ID = os.environ['AIRTABLE_BASE_ID']
 
-neo4j_username = os.environ['NEO4J_USERNAME']
-neo4j_password = os.environ['NEO4J_PASSWORD']
-neo4j_uri = os.environ['NEO4J_URI']
+NEO4J_USERNAME = os.environ['NEO4J_USERNAME']
+NEO4J_PASSWORD = os.environ['NEO4J_PASSWORD']
+NEO4J_URI = os.environ['NEO4J_URI']
+
 
 def keep_col_cond(column_name: str) -> bool:
     ''' Checks if a column name should be kept.
