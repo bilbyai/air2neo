@@ -1,6 +1,6 @@
 import json
 import os
-from time import process_time
+from time import perf_counter
 from typing import Any
 
 from neo4j import GraphDatabase
@@ -133,7 +133,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             None: If everything was OK, it returns None.
     '''
     logger.info("Starting Airtable to Neo4j ingest job.")
-    start_time = process_time()
+    start_time = perf_counter()
 
     # Retrieve the Airtable reference table
     ref_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, airtable_ref_table)
@@ -222,7 +222,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
 
     driver.close()
 
-    end_time = process_time()
+    end_time = perf_counter()
 
     # TODO something is wrong with the timer
     logger.info('Ingestion completed in %s seconds.', end_time - start_time)
