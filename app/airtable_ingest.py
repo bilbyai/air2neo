@@ -57,8 +57,19 @@ def prop_col_cond(column_name: str) -> bool:
         return False
     return column_name.islower()
 
-def format_edge_col(col):
+
+def format_edge_col(col: str) -> str:
+    ''' Formats an edge column name.
+    Anything after a dunder (double underline) is removed.
+
+    Args:
+        col (str): The name of the column.
+
+    Returns:
+        str: The formatted column name.
+    '''
     return col.split('__')[0]
+
 
 def is_airtable_record_id(record: Any) -> bool:
     ''' Checks if a single record is an airtable ID.
