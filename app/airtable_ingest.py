@@ -6,6 +6,7 @@ from neo4j import GraphDatabase
 from pandas import DataFrame, Series
 from pyairtable import Table
 
+from .config import logger
 from .vars import airtable_id_col, airtable_ref_table
 
 AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
@@ -134,21 +135,36 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
     # Retrieve the Airtable reference table
     ref_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, airtable_ref_table)
     tables = [x['fields']['Name'] for x in ref_table.all()]
+
+    logger.info('Found %s tables in Airtable.', len(tables))
+    logger.info('Tables: %s', tables)
+
     airtables = [Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, t) for t in tables]
-    dataframes = [DataFrame(t.all()) for t in airtables]
 
-    # Split Nodes and Edges
-    dataframes = [df.apply(_split_node_edge, axis=1) for df in dataframes]
+    dataframes = []
+    for name, table in zip(tables, airtables):
+        # download data from airtable
+        logger.info('Downloading table %s from Airtable.', name)
+        df = DataFrame(table.all())
+        logger.info('Downloaded %s records for table "%s."', len(df), name)
+        df = df.apply(_split_node_edge, axis=1)
+        dataframes.append(df)
 
+    logger.info('Creating Neo4j driver...')
     driver = GraphDatabase.driver(NEO4J_URI,
                                   auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
+    logger.info('Creating Neo4j session...')
     with driver.session() as session:
+
+        
         if nuke:
-            session.run("MATCH (n) DETACH DELETE n")
+            logger.info('`nuke` is set to True. Nuking Neo4j database...')
+            session.run('MATCH (n) DETACH DELETE n')
 
         # Create Nodes
         for table, df in zip(tables, dataframes):
+            logger.info('Creating nodes for table "%s"...', table)
             for _, row in df.iterrows():
                 id, props, edges = row['id'], row['props'], row['edges']
 
@@ -176,6 +192,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
 
                 cypher = '\n'.join(cypher)
 
+                logger.info("Creating node: %s", cypher)
                 session.run(cypher)
 
         # Create Edges
@@ -189,6 +206,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         cypher.append(f'MATCH (m) WHERE m.{airtable_id_col} = "{v_}"')
                         cypher.append(f'MERGE (n)-[r:`{k}`]->(m)')
                         cypher = '\n'.join(cypher)
+
+                        logger.info("Creating edge: %s", cypher)
                         session.run(cypher)
 
     driver.close()
