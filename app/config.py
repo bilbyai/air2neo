@@ -1,6 +1,8 @@
 import logging
 from logging.config import dictConfig
 
+from .vars import logging_level
+
 # from pydantic import BaseModel
 
 log_config = dict(
@@ -21,7 +23,7 @@ log_config = dict(
         },
     },
     loggers={
-        "airtable-to-neo4j": {"handlers": ["default"], "level": "DEBUG"},
+        "airtable-to-neo4j": {"handlers": ["default"], "level": logging_level},
     },
 
 )
