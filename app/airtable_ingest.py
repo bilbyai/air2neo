@@ -164,9 +164,15 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             session.run('MATCH (n) DETACH DELETE n')
 
         # Create Nodes
-        nodes_created_count = 0
+        
         for table, df in zip(tables, dataframes):
+            nodes_created_count = 0
+            logger.info('Creating Constraint for table "%s"...', table)
+            session.run(f'CREATE CONSTRAINT IF NOT EXISTS ON (n:{table}) '
+                         f'ASSERT n.`{airtable_id_col}` IS UNIQUE')
+
             logger.info('Creating nodes for table "%s"...', table)
+
             for _, row in df.iterrows():
                 id, props, edges = row['id'], row['props'], row['edges']
 
@@ -202,8 +208,9 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         nodes_created_count, table)
 
         # Create Edges
-        edges_created_count = 0
+        
         for table, df in zip(tables, dataframes):
+            edges_created_count = 0
             for _, row in df.iterrows():
                 id, props, edges = row['id'], row['props'], row['edges']
                 for k, v in edges.items():
