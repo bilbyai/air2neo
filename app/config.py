@@ -1,9 +1,11 @@
 import logging
 from logging.config import dictConfig
 
-from .vars import logging_level
-
 # from pydantic import BaseModel
+
+airtable_id_col = '_aid'
+airtable_ref_table = 'Tables'
+logging_level = 'INFO'
 
 log_config = dict(
     version=1,
@@ -30,3 +32,4 @@ log_config = dict(
 
 dictConfig(log_config)
 logger = logging.getLogger('airtable-to-neo4j')
+
