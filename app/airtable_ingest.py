@@ -7,8 +7,7 @@ from neo4j import GraphDatabase
 from pandas import DataFrame, Series
 from pyairtable import Table
 
-from .config import logger
-from .vars import airtable_id_col, airtable_ref_table
+from .config import airtable_id_col, airtable_ref_table, logger
 
 AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
 AIRTABLE_BASE_ID = os.environ['AIRTABLE_BASE_ID']
