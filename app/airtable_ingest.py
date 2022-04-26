@@ -7,6 +7,8 @@ from neo4j import GraphDatabase
 from pandas import DataFrame, Series
 from pyairtable import Table
 
+from app.neo4j_functions import batch_create_node
+
 from .config import airtable_id_col, airtable_ref_table, logger
 
 AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
@@ -54,7 +56,7 @@ def prop_col_cond(column_name: str) -> bool:
         column_name (str): The name of the column.
 
     Returns:
-        bool: Returns true if the column is a node property column, and false 
+        bool: Returns true if the column is a node property column, and false
         if it is an edge column.
     '''
     if not isinstance(column_name, str):
@@ -162,47 +164,33 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             logger.info('`nuke` is set to True. Nuking Neo4j database...')
             session.run('MATCH (n) DETACH DELETE n')
 
-        # Create Nodes
-        
+        # Create Nodes    
         for table, df in zip(tables, dataframes):
             nodes_created_count = 0
             logger.info('Creating Constraint for table "%s"...', table)
-            session.run(f'CREATE CONSTRAINT IF NOT EXISTS ON (n:{table}) '
-                         f'ASSERT n.`{airtable_id_col}` IS UNIQUE')
+            session.write_transaction(f'''
+CREATE CONSTRAINT IF NOT EXISTS ON (n:{table})
+ASSERT n.`{airtable_id_col}` IS UNIQUE''')
 
             logger.info('Creating nodes for table "%s"...', table)
 
-            for _, row in df.iterrows():
-                id, props, edges = row['id'], row['props'], row['edges']
+            def make_node_list(row):
+                node = row['props']
+                node[airtable_id_col] = row['id']
+                return node
 
-                cypher = [f'MERGE (n:{table} {{{airtable_id_col}: "{id}"}})']
+            node_list = df.apply(make_node_list, axis=1).to_list()
 
-                for k, v in props.items():
-                    if isinstance(v, (int, float, bool)):
-                        # if is non-string primitive type
-                        cypher.append(f'SET n.`{k}` = "{v}"')
+            logger.info('Creating %s nodes for table "%s"...',
+                        len(node_list), table)
+            
+            session.write_transaction(batch_create_node, node_list)
 
-                    elif isinstance(v, str):
-                        # if is string
-                        v = v.replace('"', '\\"')
-                        cypher.append(f'SET n.`{k}` = "{v}"')
-
-                    elif all((isinstance(v, list), 
-                              all(isinstance(x, str) for x in v))):
-                        # if is string list
-                        v = [v.replace('"', '\\"') for v in v]
-                        cypher.append(f'SET n.`{k}` = {v}')
-
-                    else:
-                        # dump as JSON
-                        v = json.dumps(v).replace('"', '\\"')
-                        cypher.append(f'SET n.`{k}` = "{v}"')
-
-                cypher_query = '\n'.join(cypher)
-
-                logger.debug("Creating node: \n%s", cypher_query)
-                session.run(cypher_query)
-                nodes_created_count += 1
+            # with session.begin_transaction() as tx:
+            #     result = batch_create_node(tx, node_list, table)
+            #     tx.commit()
+            #     tx.close()
+            
             logger.info('%s nodes created/merged for table "%s".',
                         nodes_created_count, table)
 
