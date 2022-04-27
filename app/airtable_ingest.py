@@ -152,6 +152,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
         df = df.apply(_split_node_edge, axis=1)
         dataframes.append(df)
 
+    del airtables
+
     logger.info('Creating Neo4j driver...')
     driver = GraphDatabase.driver(NEO4J_URI,
                                   auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
@@ -167,9 +169,6 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
         
         for table, df in zip(tables, dataframes):
             nodes_created_count = 0
-            logger.info('Creating Constraint for table "%s"...', table)
-            session.run(f'CREATE CONSTRAINT IF NOT EXISTS ON (n:{table}) '
-                         f'ASSERT n.`{airtable_id_col}` IS UNIQUE')
 
             logger.info('Creating nodes for table "%s"...', table)
 
@@ -204,6 +203,11 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                 logger.debug("Creating node: \n%s", cypher_query)
                 session.run(cypher_query)
                 nodes_created_count += 1
+
+            logger.info('Creating Constraint for table "%s"...', table)
+            session.run(f'CREATE CONSTRAINT IF NOT EXISTS ON (n:{table}) '
+                         f'ASSERT n.`{airtable_id_col}` IS UNIQUE')
+
             logger.info('%s nodes created/merged for table "%s".',
                         nodes_created_count, table)
 
