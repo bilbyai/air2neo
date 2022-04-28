@@ -2,14 +2,14 @@ import os
 from time import perf_counter
 from typing import Any
 
-from app.neo4j_functions import (batch_create_edge, batch_create_node,
-                                 create_constraint_for)
 from neo4j import GraphDatabase
 from pandas import DataFrame, Series
 from pyairtable import Table
 
 from .config import (airtable_id_col, airtable_ref_table, edge_label,
                      edge_source, edge_target, logger)
+from .neo4j_functions import (batch_create_edge, batch_create_node,
+                              create_constraint_for)
 
 AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
 AIRTABLE_BASE_ID = os.environ['AIRTABLE_BASE_ID']
