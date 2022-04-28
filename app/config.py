@@ -9,9 +9,9 @@ logging_level = 'INFO'
 
 edge_source = 'source'
 edge_target = 'target'
-edge_type = 'type'
+edge_label = 'label'
 
-log_config = dict(
+_log_config = dict(
     version=1,
     disable_existing_loggers=False,
     formatters={
@@ -33,5 +33,5 @@ log_config = dict(
     },
 )
 
-dictConfig(log_config)
+dictConfig(_log_config)
 logger = logging.getLogger('airtable-to-neo4j')
