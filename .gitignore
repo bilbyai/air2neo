@@ -160,3 +160,14 @@ cython_debug/
 #.idea/
 
 *.ipynb
+
+.env
+.env.*
+.vscode
+.venv
+
+pip-wheel-metadata
+test.py
+.coverage
+coverage.xml
+.cache
