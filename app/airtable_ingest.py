@@ -174,6 +174,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
     for table in airtables:
         dfs.append(_download_airtable_and_return_as_df(table))
 
+    del airtables
+
     logger.info('Creating Neo4j driver...')
     driver = GraphDatabase.driver(NEO4J_URI,
                                   auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
