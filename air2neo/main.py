@@ -1,6 +1,5 @@
-import os
+
 from time import perf_counter
-from typing import Any
 
 from neo4j import GraphDatabase
 from pandas import DataFrame, Series
@@ -11,29 +10,6 @@ from .config import (AIRTABLE_API_KEY, AIRTABLE_BASE_ID, NEO4J_PASSWORD, NEO4J_U
                      edge_source, edge_target, format_edge_col, is_edge_rule,
                      is_prop_rule, keep_col_rule, logger)
 from .neo4j_functions import batch_create_edge, batch_create_node, create_constraint_for
-
-
-def is_airtable_record_id(record: Any) -> bool:
-    ''' Checks if a single record is an airtable ID.
-    An airtable ID is defined by 3 things:
-    1. It is a string.
-    2. All characters are alphanumeric.
-    3. It is a string of length 17
-    4. It starts with 'rec'
-
-    Args:
-        record (Any): A single record.
-
-    Returns:
-        bool: Returns true if the record is an airtable ID, and false if it is
-        not.
-    '''
-    return all((
-        isinstance(record, str),
-        record.isalnum(),
-        len(record) == 17,
-        record.startswith("rec")
-    ))
 
 
 def _split_node_edge(row: Series) -> Series:
