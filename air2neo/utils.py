@@ -16,9 +16,9 @@ def is_airtable_record_id(record: Any) -> bool:
         bool: Returns true if the record is an airtable ID, and false if it is
         not.
     '''
-    return all((
-        isinstance(record, str),
-        record.isalnum(),
-        len(record) == 17,
-        record.startswith("rec")
-    ))
+    return (
+        isinstance(record, str)
+        and record.isalnum()
+        and len(record) == 17
+        and record.startswith("rec")
+    )
