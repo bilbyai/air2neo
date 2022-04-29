@@ -6,75 +6,11 @@ from neo4j import GraphDatabase
 from pandas import DataFrame, Series
 from pyairtable import Table
 
-from .config import (airtable_id_col, airtable_ref_table, edge_label,
-                     edge_source, edge_target, logger)
-from .neo4j_functions import (batch_create_edge, batch_create_node,
-                              create_constraint_for)
-
-AIRTABLE_API_KEY = os.environ['AIRTABLE_API_KEY']
-AIRTABLE_BASE_ID = os.environ['AIRTABLE_BASE_ID']
-
-NEO4J_USERNAME = os.environ['NEO4J_USERNAME']
-NEO4J_PASSWORD = os.environ['NEO4J_PASSWORD']
-NEO4J_URI = os.environ['NEO4J_URI']
-
-
-def keep_col_cond(column_name: str) -> bool:
-    ''' Checks if a column name should be kept.
-
-    Args:
-        column_name (str): The name of the column.
-
-    Returns:
-        bool: Returns true if the column should be kept, and false if it should
-        be discarded.
-    '''
-    if not isinstance(column_name, str):
-        return False
-    return not column_name.startswith('_')
-
-
-def edge_col_cond(column_name: str) -> bool:
-    ''' Checks if a column name is an edge column or a node property column.
-
-    Args:
-        column_name (str): The name of the column.
-
-    Returns:
-        bool: Returns true if the column is an edge column, and false if it is
-        a node property column.
-    '''
-    if not isinstance(column_name, str):
-        return False
-    return column_name.isupper()
-
-
-def prop_col_cond(column_name: str) -> bool:
-    ''' Checks if a column name is a node property column.
-
-    Args:
-        column_name (str): The name of the column.
-
-    Returns:
-        bool: Returns true if the column is a node property column, and false
-        if it is an edge column.
-    '''
-    if not isinstance(column_name, str):
-        return False
-    return not edge_col_cond(column_name)
-
-
-def format_edge_col(col: str) -> str:
-    ''' Formats an edge column name.
-    Anything after a dunder (double underline) is removed.
-
-    Args:
-        col (str): The name of the column.
-
-    Returns:
-        str: The formatted column name.
-    '''
-    return col.split('__')[0]
+from .config import (AIRTABLE_API_KEY, AIRTABLE_BASE_ID, NEO4J_PASSWORD, NEO4J_URI,
+                     NEO4J_USERNAME, airtable_id_col, airtable_ref_table, edge_label,
+                     edge_source, edge_target, format_edge_col, is_edge_rule,
+                     is_prop_rule, keep_col_rule, logger)
+from .neo4j_functions import batch_create_edge, batch_create_node, create_constraint_for
 
 
 def is_airtable_record_id(record: Any) -> bool:
@@ -104,15 +40,15 @@ def _split_node_edge(row: Series) -> Series:
     # This function is created just to do a df.apply()
     row['fields'] = {k: v
                      for k, v in row['fields'].items()
-                     if keep_col_cond(k)}
+                     if keep_col_rule(k)}
 
     row['edges'] = {format_edge_col(k): v
                     for k, v in row['fields'].items()
-                    if edge_col_cond(k)}
+                    if is_edge_rule(k)}
 
     row['props'] = {k: v
                     for k, v in row['fields'].items()
-                    if prop_col_cond(k)}
+                    if is_prop_rule(k)}
 
     del row['fields']
 
@@ -186,7 +122,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             logger.info('`nuke` is set to True. Nuking Neo4j database...')
             session.run('MATCH (n) DETACH DELETE n')
 
-        # Create Nodes    
+        # Create Nodes
         for table, df in dfs:
             logger.info('Creating Constraint for table "%s"...', table)
 
@@ -214,8 +150,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             with session.begin_transaction() as tx:
                 # Create constraint
                 logger.info('Creating constraint for table "%s"...', table)
-                res = create_constraint_for(tx, 
-                                            label=table, 
+                res = create_constraint_for(tx,
+                                            label=table,
                                             constraint=airtable_id_col)
 
                 tx.commit()
@@ -233,7 +169,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                         edge[edge_target] = v_
                         edge[edge_label] = k
                         edge_list.append(edge)
-        
+
             logger.info('Creating %s edges...', len(edge_list))
             # session.write_transaction(batch_create_edge, edge_list)
             with session.begin_transaction() as tx:
