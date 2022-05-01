@@ -42,6 +42,7 @@ NEO4J_USERNAME = os.environ['NEO4J_USERNAME']
 NEO4J_PASSWORD = os.environ['NEO4J_PASSWORD']
 NEO4J_URI = os.environ['NEO4J_URI']
 
+
 def keep_col_rule(column_name: str) -> bool:
     ''' Checks if a column name should be kept.
 
