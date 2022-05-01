@@ -56,7 +56,6 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
 
     airtables = [Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, t) for t in tables]
 
-
     def _download_airtable_and_return_as_df(table: Table) -> DataFrame:
         ''' Downloads a single Airtable table and returns it as a DataFrame.
 
