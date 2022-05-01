@@ -17,8 +17,8 @@ def is_airtable_record_id(record: Any) -> bool:
         not.
     '''
     return (
-        isinstance(record, str) and
-        record.isalnum() and
-        len(record) == 17 and
-        record.startswith("rec")
+        isinstance(record, str)
+        and record.isalnum()
+        and len(record) == 17
+        and record.startswith("rec")
     )
