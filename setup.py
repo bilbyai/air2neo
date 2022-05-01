@@ -1,6 +1,6 @@
-import setuptools
+from setuptools import setup
 
-setuptools.setup(
+setup(
     package_data={
         'air2neo': ['py.typed'],
     }
