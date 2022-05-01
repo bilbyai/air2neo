@@ -126,8 +126,8 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                 # Create constraint
                 logger.info('Creating constraint for table "%s"...', table)
                 create_constraint_for(tx,
-                                            label=table,
-                                            constraint=airtable_id_col)
+                                      label=table,
+                                      constraint=airtable_id_col)
 
                 tx.commit()
                 tx.close()
