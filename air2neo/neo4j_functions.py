@@ -2,8 +2,7 @@ from typing import Any, Dict, Sequence
 
 from neo4j import Transaction
 
-from .config import (airtable_id_col, edge_label, edge_source, edge_target,
-                     logger)
+from .config import airtable_id_col, edge_label, edge_source, edge_target, logger
 
 
 def create_index_for(tx: Transaction,
@@ -28,9 +27,9 @@ def create_index_for(tx: Transaction,
 CREATE INDEX IF NOT EXISTS FOR (n.{label})
 ON ({index_query})'''
 
-    log.info(f'Creating indexes for {label}')
+    log.info('Creating indexes for %s', label)
     res = tx.run(cypher)
-    log.info(f'Created indexes for {label}')
+    log.info('Created indexes for %s', label)
 
     return res
 
@@ -53,9 +52,9 @@ def create_constraint_for(tx: Transaction,
 CREATE CONSTRAINT IF NOT EXISTS ON (n:{label})
 ASSERT n.{constraint} IS UNIQUE'''
 
-    log.info(f'Creating constraint for {label}')
+    log.info('Creating constraint for %s', label)
     res = tx.run(cypher)
-    log.info(f'Created constraint for {label}')
+    log.info('Created constraint for %s', label)
 
     return res
 
@@ -79,9 +78,9 @@ UNWIND $node_list AS node
 MERGE (n:{label} {{{airtable_id_col}: node.{airtable_id_col}}})
 SET n = node'''
 
-    log.info(f'Creating nodes for {label}')
+    log.info('Creating nodes for %s', label)
     res = tx.run(cypher, node_list=node_list)
-    log.info(f'Created nodes for {label}')
+    log.info('Created nodes for %s', label)
 
     return res
 
@@ -105,7 +104,7 @@ def batch_create_edge(tx: Transaction,
             edge_source, edge_target, edge_label.
         log (Any, optional): The logger to use. Defaults to logger.
     """
-    
+
     cypher = f'''
 UNWIND $edge_list AS edge
 MATCH (n) WHERE n.{airtable_id_col} = edge.{edge_source}
@@ -117,8 +116,8 @@ CALL apoc.create.relationship(n, edge.{edge_label}, NULL, m)
 YIELD rel
 RETURN n, m, rel'''
 
-    log.info(f'Creating edges')
+    log.info('Creating edges')
     res = tx.run(cypher, edge_list=edge_list)
-    log.info(f'Created edges')
+    log.info('Created edges')
 
     return res
