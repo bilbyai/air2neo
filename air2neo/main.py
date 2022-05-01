@@ -114,7 +114,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
                 logger.info('Creating %s nodes for table "%s"...',
                             len(node_list), table)
 
-                res = batch_create_node(tx, label=table, node_list=node_list)
+                batch_create_node(tx, label=table, node_list=node_list)
 
                 logger.info('%s nodes created/merged for table "%s".',
                             len(node_list), table)
@@ -125,7 +125,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             with session.begin_transaction() as tx:
                 # Create constraint
                 logger.info('Creating constraint for table "%s"...', table)
-                res = create_constraint_for(tx,
+                create_constraint_for(tx,
                                             label=table,
                                             constraint=airtable_id_col)
 
@@ -148,7 +148,7 @@ def run_airtable_to_neo4j_ingest_job(*, nuke: bool = False) -> None:
             logger.info('Creating %s edges...', len(edge_list))
             # session.write_transaction(batch_create_edge, edge_list)
             with session.begin_transaction() as tx:
-                res = batch_create_edge(tx, edge_list=edge_list)
+                batch_create_edge(tx, edge_list=edge_list)
                 tx.commit()
                 tx.close()
 
