@@ -7,7 +7,7 @@ from pyairtable import Table
 
 from .config import (AIRTABLE_API_KEY, AIRTABLE_BASE_ID, NEO4J_PASSWORD, NEO4J_URI,
                      NEO4J_USERNAME, airtable_id_col, airtable_ref_table, edge_label,
-                     edge_source, edge_target, format_edge_col, is_edge_rule,
+                     edge_source, edge_target, format_edge_col_name, is_edge_rule,
                      is_prop_rule, keep_col_rule, logger)
 from .neo4j_functions import batch_create_edge, batch_create_node, create_constraint_for
 
@@ -18,7 +18,7 @@ def _split_node_edge(row: Series) -> Series:
                      for k, v in row['fields'].items()
                      if keep_col_rule(k)}
 
-    row['edges'] = {format_edge_col(k): v
+    row['edges'] = {format_edge_col_name(k): v
                     for k, v in row['fields'].items()
                     if is_edge_rule(k)}
 

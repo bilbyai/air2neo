@@ -88,7 +88,7 @@ def is_prop_rule(column_name: str) -> bool:
     return not is_edge_rule(column_name)
 
 
-def format_edge_col(col: str) -> str:
+def format_edge_col_name(col: str) -> str:
     ''' Formats an edge column name.
     Anything after a dunder (double underline) is removed.
 
