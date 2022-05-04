@@ -1,5 +1,6 @@
 
 import logging
+from logging.config import dictConfig
 from os import environ
 from time import perf_counter
 from typing import Any, Callable, Dict, Sequence, Tuple
@@ -128,7 +129,6 @@ class Air2Neo:
                 disable_existing_loggers=False,
                 formatters={
                     "default": {
-                        "()": "uvicorn.logging.DefaultFormatter",
                         "fmt": "%(levelprefix)s %(asctime)s %(message)s",
                         "datefmt": "%Y-%m-%d %H:%M:%S",
                     },
@@ -144,7 +144,7 @@ class Air2Neo:
                     "airtable-to-neo4j": {"handlers": ["default"], "level": 'INFO'},
                 },
             )
-            logging.config.dictConfig(_log_config)
+            dictConfig(_log_config)
             self.logger = logging.getLogger('airtable-to-neo4j')
 
         # Configure neo4j driver, if not already configured
@@ -221,7 +221,7 @@ class Air2Neo:
 
                 def _make_node_list(row):
                     node = row['props']
-                    node[self.id_property] = row['_id']
+                    node[self.id_property] = row['id']
                     return node
 
                 node_list = df.apply(_make_node_list, axis=1).to_list()
@@ -233,7 +233,6 @@ class Air2Neo:
                     self.logger.info('%s nodes created/merged for table "%s".',
                                      len(node_list), table)
                     tx.commit()
-                    tx.close()
 
                 # Create Constraint
                 self.logger.info('Creating constraint for table "%s"...', table)
@@ -242,11 +241,10 @@ class Air2Neo:
                                                label=table,
                                                constraint=self.id_property)
                     tx.commit()
-                    tx.close()
 
             # Create Edges
             for table, df in dfs:
-                self.logger.info('Creating edges for table "%s"...', table)
+                self.logger.info('Creating edge dict for table "%s"...', table)
                 edge_list = []
                 for _, row in df.iterrows():
                     row_id, edges = row['id'], row['edges']
@@ -263,17 +261,17 @@ class Air2Neo:
                 with session.begin_transaction() as tx:
                     self.batch_create_edge(tx, edge_list=edge_list)
                     tx.commit()
-                    tx.close()
 
-                self.logger.info('%s edges created for table "%s".',
+                self.logger.info('%s edges created/merged for table "%s".',
                                  len(edge_list), table)
 
         # Close driver
         self.neo4j_driver.close()
 
         # Print elapsed time
-        self.logger.info('Airtable to Neo4j ingest job completed in %s seconds.',
-                         perf_counter() - start_time)
+        self.logger.info(
+            'Airtable to Neo4j ingest job completed in %0.2f seconds.',
+            perf_counter() - start_time)
 
     def _download_airtable_and_return_as_df(self, table: Table) -> Tuple[str, DataFrame]:
         ''' Downloads a single Airtable table and returns it as a DataFrame.
@@ -289,7 +287,7 @@ class Air2Neo:
         self.logger.info('Downloading Airtable table %s', name)
         start_time = perf_counter()
         df = DataFrame(table.all())
-        self.logger.info('Downloaded Airtable table %s (Records: %s) in %s seconds',
+        self.logger.info('Downloaded Airtable table %s (Records: %s) in %0.2f seconds',
                          name, len(df), perf_counter() - start_time)
         df = df.apply(Air2Neo._split_node_edge, axis=1)
         return name, df
