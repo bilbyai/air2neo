@@ -23,14 +23,15 @@ class Air2Neo:
         neo4j_uri: str = environ.get('NEO4J_URI', None),
         neo4j_username: str = environ.get('NEO4J_USERNAME', None),
         neo4j_password: str = environ.get('NEO4J_PASSWORD', None),
+        
         *,  # Only allow keyword arguments after this point
-        neo4j_driver: GraphDatabase = None,
-        airtable_metatable: Table = None,
+        neo4j_driver: GraphDatabase = None, # Optional if above is provided
+        airtable_metatable: Table = None, # Optional if above is provided
 
         neo4j_airtable_id_property: str = '_aid',
-        is_edge_rule: Callable = is_edge_rule_default,
-        is_prop_rule: Callable = is_prop_rule_default,
         keep_col_rule: Callable = keep_col_rule_default,
+        is_prop_rule: Callable = is_prop_rule_default,
+        is_edge_rule: Callable = is_edge_rule_default,
         format_edge_col_name: Callable = format_edge_col_name_default,
         edge_label: str = 'label',
         edge_source: str = 'source',
@@ -82,15 +83,21 @@ class Air2Neo:
         ```
 
         Args:
-            airtable_base_id (str, optional): _description_. Defaults to environ.get('AIRTABLE_BASE_ID', None).
-            neo4j_username (str, optional): _description_. Defaults to environ.get('NEO4J_USERNAME', None).
-            neo4j_password (str, optional): _description_. Defaults to environ.get('NEO4J_PASSWORD', None).
-            neo4j_uri (str, optional): _description_. Defaults to environ.get('NEO4J_URI', None).
-            airtable_metatable (Table, optional): _description_. Defaults to None.
-            neo4j_airtable_id_property (str, optional): _description_. Defaults to '_aid'.
-            is_edge_rule (Callable, optional): _description_. Defaults to is_edge_rule.
-            is_prop_rule (Callable, optional): _description_. Defaults to is_prop_rule.
+            airtable_api_key (str, optional): The Airtable API key. Defaults to None.
+            airtable_base_id (str, optional): The Airtable base ID. Defaults to None.
+            neo4j_username (str, optional): The Neo4j username. Defaults to None.
+            neo4j_password (str, optional): The Neo4j password. Defaults to None.
+            neo4j_uri (str, optional): The Neo4j URI. Defaults to None.
+            airtable_metatable (pyairtable.Table, optional): Optional if airtable_api_key and 
+                airtable_base_id are provided, and will look for 'Metatable' within the base if not 
+                specified. Defaults to None.
+            neo4j_airtable_id_property (str, optional): The name of the property that will be used 
+                to store the Airtable ID. Defaults to '_aid'.
             keep_col_rule (Callable, optional): _description_. Defaults to keep_col_rule.
+            is_prop_rule (Callable, optional): _description_. Defaults to is_prop_rule.
+            is_edge_rule (Callable, optional): A function, given the string column name, returns a
+                boolean whether the column is an edge. Defaults to is_edge_rule_default.
+                The default function check if the column name is all caps.
             format_edge_col_name (Callable, optional): _description_. Defaults to format_edge_col_name.
             logger (logging.Logger, optional): _description_. Defaults to None.
             edge_label (str, optional): _description_. Defaults to 'label'.
@@ -382,20 +389,21 @@ RETURN n, m, rel'''
         res = tx.run(cypher, edge_list=edge_list)
         return res
 
-    @staticmethod
-    def _split_node_edge(row: Series) -> Series:
+
+    def _split_node_edge(self,
+                         row: Series) -> Series:
         # This function is created just to do a df.apply()
         row['fields'] = {k: v
                          for k, v in row['fields'].items()
-                         if keep_col_rule_default(k)}
+                         if self.keep_col_rule(k)}
 
         row['edges'] = {format_edge_col_name_default(k): v
                         for k, v in row['fields'].items()
-                        if is_edge_rule_default(k)}
+                        if self.is_edge_rule(k)}
 
         row['props'] = {k: v
                         for k, v in row['fields'].items()
-                        if is_prop_rule_default(k)}
+                        if self.is_prop_rule(k)}
 
         del row['fields']
 
