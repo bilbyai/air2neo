@@ -20,10 +20,11 @@ class Air2Neo:
         /,
         airtable_api_key: str = environ.get('AIRTABLE_API_KEY', None),
         airtable_base_id: str = environ.get('AIRTABLE_BASE_ID', None),
+        airtable_table_name: str = environ.get('AIRTABLE_METATABLE_NAME', 'Metatable'),
         neo4j_uri: str = environ.get('NEO4J_URI', None),
         neo4j_username: str = environ.get('NEO4J_USERNAME', None),
         neo4j_password: str = environ.get('NEO4J_PASSWORD', None),
-        
+
         *,  # Only allow keyword arguments after this point
         neo4j_driver: GraphDatabase = None, # Optional if above is provided
         airtable_metatable: Table = None, # Optional if above is provided
@@ -88,10 +89,10 @@ class Air2Neo:
             neo4j_username (str, optional): The Neo4j username. Defaults to None.
             neo4j_password (str, optional): The Neo4j password. Defaults to None.
             neo4j_uri (str, optional): The Neo4j URI. Defaults to None.
-            airtable_metatable (pyairtable.Table, optional): Optional if airtable_api_key and 
-                airtable_base_id are provided, and will look for 'Metatable' within the base if not 
+            airtable_metatable (pyairtable.Table, optional): Optional if airtable_api_key and
+                airtable_base_id are provided, and will look for 'Metatable' within the base if not
                 specified. Defaults to None.
-            neo4j_airtable_id_property (str, optional): The name of the property that will be used 
+            neo4j_airtable_id_property (str, optional): The name of the property that will be used
                 to store the Airtable ID. Defaults to '_aid'.
             keep_col_rule (Callable, optional): _description_. Defaults to keep_col_rule.
             is_prop_rule (Callable, optional): _description_. Defaults to is_prop_rule.
@@ -109,81 +110,64 @@ class Air2Neo:
             neo4j_username, and neo4j_password are not provided.
         """
 
+        # Create logger, if not already configured
+        self.logger = logger if logger else Air2Neo._create_logger(log_level='INFO')
+
+        # Validate Neo4j driver
+        # Configure neo4j driver, if not already configured
+        if not neo4j_driver or not (neo4j_uri and neo4j_username and neo4j_password):
+            # If no driver is provided, and no neo4j_uri, neo4j_username, and neo4j_password
+            # are provided, then raise an error
+            raise ValueError(
+                'If no neo4j_driver is provided, then neo4j_uri, '
+                'neo4j_username, and neo4j_password must be provided.')
+
+        if neo4j_driver:
+            self.neo4j_driver = neo4j_driver
+
+        else:
+            self.logger.info('Creating Neo4j driver...')
+            self.neo4j_driver = GraphDatabase.driver(
+                neo4j_uri,
+                auth=(neo4j_username, neo4j_password)
+            )
+
         self.airtable_api_key = airtable_api_key
         self.airtable_base_id = airtable_base_id
-        self.neo4j_username = neo4j_username
-        self.neo4j_password = neo4j_password
-        self.neo4j_uri = neo4j_uri
-        self.airtable_metatable = airtable_metatable
+        self.airtable_table_name = airtable_table_name
+
+        # Validate Airtable
+        if not airtable_metatable:
+            # If no airtable_metatable is provided, then infer from keys
+            if not (airtable_api_key and airtable_base_id):
+                # If no airtable_api_key or airtable_base_id are provided, then raise an error
+                raise ValueError(
+                    'If no airtable_metatable is provided, then '
+                    'airtable_api_key and airtable_base_id must be provided.')
+
+            self.airtable_metatable = Table(
+                airtable_api_key,
+                airtable_base_id,
+                airtable_table_name if airtable_table_name else 'Metatable'
+            )
+
+        else:
+            # pyairtable.Table is provded, will infer api key and base id from it
+            self.airtable_metatable = airtable_metatable
+            if not airtable_api_key:
+                self.airtable_api_key = self.airtable_metatable.api_key
+            if not airtable_base_id:
+                self.airtable_base_id = self.airtable_metatable.base_id
+
+        # Default Values
         self.id_property = neo4j_airtable_id_property
         self.is_edge_rule = is_edge_rule
         self.is_prop_rule = is_prop_rule
         self.keep_col_rule = keep_col_rule
         self.format_edge_col_name = format_edge_col_name
-        self.logger = logger
-        # Default Values
         self.edge_label = edge_label
         self.edge_source = edge_source
         self.edge_target = edge_target
-
-        # Configure logger, if not already configured
-        if logger:
-            self.logger = logger
-
-        else:
-            _log_config = dict(
-                version=1,
-                disable_existing_loggers=False,
-                formatters={
-                    "default": {
-                        "fmt": "%(levelprefix)s %(asctime)s %(message)s",
-                        "datefmt": "%Y-%m-%d %H:%M:%S",
-                    },
-                },
-                handlers={
-                    "default": {
-                        "formatter": "default",
-                        "class": "logging.StreamHandler",
-                        "stream": "ext://sys.stderr",
-                    },
-                },
-                loggers={
-                    "airtable-to-neo4j": {"handlers": ["default"], "level": 'INFO'},
-                },
-            )
-            dictConfig(_log_config)
-            self.logger = logging.getLogger('airtable-to-neo4j')
-
-        # Configure neo4j driver, if not already configured
-        if neo4j_driver:
-            self.neo4j_driver = neo4j_driver
-
-        else:
-            if neo4j_uri and neo4j_username and neo4j_password:
-                self.logger.info('Creating Neo4j driver...')
-                self.neo4j_driver = GraphDatabase.driver(
-                    neo4j_uri,
-                    auth=(neo4j_username, neo4j_password))
-
-            else:
-                raise ValueError(
-                    'If neo4j_driver is not provided, neo4j_uri, neo4j_username, and neo4j_password must be provided.')
-
-        # Create metatable, if not specified.
-        # This is the table that contains the name of tables to ingest.
-        # Defaults to 'Metatable' table in the provided base.
-        if not self.airtable_metatable:
-            self.airtable_metatable = Table(
-                self.airtable_api_key,
-                self.airtable_base_id,
-                'Metatable'
-            )
-        else:
-            # Metatable is provided, filling in missing base_id and api_key.
-            if not self.airtable_api_key:
-                self.airtable_api_key = self.airtable_metatable.api_key
-            if not self.airtable_base_id:
-                self.airtable_base_id = self.airtable_metatable.base_id
 
     def run(self,
             clean_ingest: bool = False) -> None:
@@ -411,3 +395,28 @@ RETURN n, m, rel'''
             del row['createdTime']
 
         return row
+
+    @staticmethod
+    def _create_logger(log_level: str) -> logging.Logger:
+        _log_config = dict(
+            version=1,
+            disable_existing_loggers=False,
+            formatters={
+                "default": {
+                    "fmt": "%(levelprefix)s %(asctime)s %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S",
+                },
+            },
+            handlers={
+                "default": {
+                    "formatter": "default",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stderr",
+                },
+            },
+            loggers={
+                "air2neo": {"handlers": ["default"], "level": 'INFO'},
+            },
+        )
+        dictConfig(_log_config)
+        return logging.getLogger('air2neo')
