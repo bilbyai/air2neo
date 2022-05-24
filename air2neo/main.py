@@ -115,7 +115,7 @@ class Air2Neo:
 
         # Validate Neo4j driver
         # Configure neo4j driver, if not already configured
-        if not neo4j_driver or not (neo4j_uri and neo4j_username and neo4j_password):
+        if not neo4j_driver and not (neo4j_uri and neo4j_username and neo4j_password):
             # If no driver is provided, and no neo4j_uri, neo4j_username, and neo4j_password
             # are provided, then raise an error
             raise ValueError(
