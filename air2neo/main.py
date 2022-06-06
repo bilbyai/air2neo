@@ -26,8 +26,8 @@ class Air2Neo:
         neo4j_password: str = environ.get('NEO4J_PASSWORD', None),
 
         *,  # Only allow keyword arguments after this point
-        neo4j_driver: GraphDatabase = None, # Optional if above is provided
-        airtable_metatable: Table = None, # Optional if above is provided
+        neo4j_driver: GraphDatabase = None,  # Optional if above is provided
+        airtable_metatable: Table = None,  # Optional if above is provided
 
         neo4j_airtable_id_property: str = '_aid',
         keep_col_rule: Callable = keep_col_rule_default,
@@ -372,7 +372,6 @@ YIELD rel
 RETURN n, m, rel'''
         res = tx.run(cypher, edge_list=edge_list)
         return res
-
 
     def _split_node_edge(self,
                          row: Series) -> Series:
