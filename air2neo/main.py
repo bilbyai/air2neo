@@ -289,7 +289,7 @@ class Air2Neo:
             len(df),
             perf_counter() - start_time,
         )
-        df = df.apply(lambda row: Air2Neo._split_node_edge(row), axis=1)
+        df = df.apply(lambda row: self._split_node_edge(row), axis=1)
         return name, df
 
     def create_index_for(self, tx: Transaction, label: str, indexes: Sequence[str]):
