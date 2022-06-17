@@ -8,12 +8,8 @@ from neo4j import GraphDatabase, Transaction
 from pandas import DataFrame, Series
 from pyairtable import Table
 
-from .config import (
-    format_edge_col_name_default,
-    is_edge_rule_default,
-    is_prop_rule_default,
-    keep_col_rule_default,
-)
+from .config import (format_edge_col_name_default, is_edge_rule_default,
+                     is_prop_rule_default, keep_col_rule_default)
 
 
 class Air2Neo:
@@ -293,7 +289,7 @@ class Air2Neo:
             len(df),
             perf_counter() - start_time,
         )
-        df = df.apply(Air2Neo._split_node_edge, axis=1)
+        df = df.apply(lambda row: Air2Neo._split_node_edge(row), axis=1)
         return name, df
 
     def create_index_for(self, tx: Transaction, label: str, indexes: Sequence[str]):
