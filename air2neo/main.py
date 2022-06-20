@@ -221,7 +221,7 @@ class Air2Neo:
                     self.logger.info(
                         'Creating %s nodes for table "%s"...', len(node_list), table
                     )
-                    self.batch_create_node(tx, label=table, node_list=node_list)
+                    self.neo4jop_batch_create_node(tx, label=table, node_list=node_list)
                     self.logger.info(
                         '%s nodes created/merged for table "%s".', len(node_list), table
                     )
@@ -230,7 +230,7 @@ class Air2Neo:
                 # Create Constraint
                 self.logger.info('Creating constraint for table "%s"...', table)
                 with session.begin_transaction() as tx:
-                    self.create_constraint_for(
+                    self.neo4jop_create_constraint(
                         tx, label=table, constraint=self.id_property
                     )
                     tx.commit()
@@ -255,7 +255,7 @@ class Air2Neo:
                     'Creating %s edges for table "%s"...', len(edge_list), table
                 )
                 with session.begin_transaction() as tx:
-                    self.batch_create_edge(tx, edge_list=edge_list)
+                    self.neo4jop_batch_create_edge(tx, edge_list=edge_list)
                     tx.commit()
 
                 self.logger.info(
@@ -296,7 +296,7 @@ class Air2Neo:
         df = df.apply(lambda row: self._split_node_edge(row), axis=1)
         return name, df
 
-    def create_index_for(self, tx: Transaction, label: str, indexes: Sequence[str]):
+    def neo4jop_create_index(self, tx: Transaction, label: str, indexes: Sequence[str]):
         """Creates an index for a label.
 
         Args:
@@ -308,14 +308,12 @@ class Air2Neo:
         Returns:
             _type_: _description_
         """
-        index_query = ", ".join([f"n.{index}" for index in indexes])
-        cypher = f"""
-CREATE INDEX IF NOT EXISTS FOR (n.{label})
-ON ({index_query})"""
+        index_query = ", ".join([f"n.`{index}`" for index in indexes])
+        cypher = f"CREATE INDEX IF NOT EXISTS FOR (n.{label}) ON ({index_query})"
         res = tx.run(cypher)
         return res
 
-    def create_constraint_for(self, tx: Transaction, label: str, constraint: str):
+    def neo4jop_create_constraint(self, tx: Transaction, label: str, constraint: str):
         """Creates a constraint for a label.
 
         Args:
@@ -330,7 +328,7 @@ ASSERT n.{constraint} IS UNIQUE"""
         res = tx.run(cypher)
         return res
 
-    def batch_create_node(
+    def neo4jop_batch_create_node(
         self, tx: Transaction, label: str, node_list: Sequence[Dict[str, Any]]
     ):
         """Creates a batch of nodes.
@@ -348,7 +346,9 @@ SET n = node"""
         res = tx.run(cypher, node_list=node_list)
         return res
 
-    def batch_create_edge(self, tx: Transaction, edge_list: Sequence[Dict[str, str]]):
+    def neo4jop_batch_create_edge(
+        self, tx: Transaction, edge_list: Sequence[Dict[str, str]]
+    ):
         """Creates a batch of edges.
 
         Args:
