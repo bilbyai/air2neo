@@ -422,3 +422,35 @@ RETURN n, m, rel"""
         )
         dictConfig(_log_config)
         return logging.getLogger("air2neo")
+
+    def create_indices_from_metatable(self, index_col_name: str = "IndexFor"):
+        """Creates indices for the Neo4j label from the Airtable meta-table.
+
+        Args:
+            index_col_name (str, optional): _description_. Defaults to "IndexFor".
+        """
+        table = self.airtable_metatable.all()
+        for row in table:
+            table_name = row["fields"]["Name"]
+            index_for = row["fields"][index_col_name]
+            if index_for:
+                with self.neo4j_driver.session() as session:
+                    with session.begin_transaction() as tx:
+                        self.neo4jop_create_index(tx, table_name, index_for)
+
+    def create_constraints_from_metatable(
+        self, constraint_col_name: str = "ConstrainFor"
+    ):
+        """Creates constraints for the Neo4j label from the Airtable meta-table.
+
+        Args:
+            constraint_col_name (str, optional): _description_. Defaults to "ConstrainFor".
+        """
+        table = self.airtable_metatable.all()
+        for row in table:
+            table_name = row["fields"]["Name"]
+            constrain_for = row["fields"][constraint_col_name]
+            if constrain_for:
+                with self.neo4j_driver.session() as session:
+                    with session.begin_transaction() as tx:
+                        self.neo4jop_create_constraint(tx, table_name, constrain_for)
