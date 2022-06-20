@@ -322,9 +322,11 @@ class Air2Neo:
             constraint (str): The constraint to create.
             log (Any, optional): The logger to use. Defaults to logger.
         """
-        cypher = f"""
-CREATE CONSTRAINT IF NOT EXISTS ON (n:{label})
-ASSERT n.{constraint} IS UNIQUE"""
+        cypher = (
+            f"CREATE CONSTRAINT IF NOT EXISTS"
+            f"ON (n:{label})"
+            f"ASSERT n.{constraint} IS UNIQUE"
+        )
         res = tx.run(cypher)
         return res
 
@@ -339,10 +341,11 @@ ASSERT n.{constraint} IS UNIQUE"""
             node_list (Sequence[Dict[str, Any]]): The list of nodes to create.
             log (Any, optional): The logger to use. Defaults to logger.
         """
-        cypher = f"""
-UNWIND $node_list AS node
-MERGE (n:{label} {{{self.id_property}: node.{self.id_property}}})
-SET n = node"""
+        cypher = (
+            f"UNWIND $node_list AS node"
+            f"MERGE (n:{label} {{{self.id_property}: node.{self.id_property}}})"
+            "SET n = node"
+        )
         res = tx.run(cypher, node_list=node_list)
         return res
 
@@ -364,16 +367,17 @@ SET n = node"""
                 edge_source, edge_target, edge_label.
             log (Any, optional): The logger to use. Defaults to logger.
         """
-        cypher = f"""
-UNWIND $edge_list AS edge
-MATCH (n) WHERE n.{self.id_property} = edge.{self.edge_source}
-MATCH (m) WHERE m.{self.id_property} = edge.{self.edge_target}
-OPTIONAL MATCH (n)-[rel]-(m)
-WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes
-WHERE NOT edge.{self.edge_label} IN relTypes
-CALL apoc.create.relationship(n, edge.{self.edge_label}, NULL, m)
-YIELD rel
-RETURN n, m, rel"""
+        cypher = (
+            f"UNWIND $edge_list AS edge"
+            f"MATCH (n) WHERE n.{self.id_property} = edge.{self.edge_source}"
+            f"MATCH (m) WHERE m.{self.id_property} = edge.{self.edge_target}"
+            f"OPTIONAL MATCH (n)-[rel]-(m)"
+            f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes"
+            f"WHERE NOT edge.{self.edge_label} IN relTypes"
+            f"CALL apoc.create.relationship(n, edge.{self.edge_label}, NULL, m)"
+            f"YIELD rel"
+            f"RETURN n, m, rel"
+        )
         res = tx.run(cypher, edge_list=edge_list)
         return res
 
