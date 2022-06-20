@@ -8,8 +8,12 @@ from neo4j import GraphDatabase, Transaction
 from pandas import DataFrame, Series
 from pyairtable import Table
 
-from .config import (format_edge_col_name_default, is_edge_rule_default,
-                     is_prop_rule_default, keep_col_rule_default)
+from .config import (
+    format_edge_col_name_default,
+    is_edge_rule_default,
+    is_prop_rule_default,
+    keep_col_rule_default,
+)
 
 
 class Air2Neo:
