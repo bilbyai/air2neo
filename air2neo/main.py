@@ -34,9 +34,6 @@ class Air2Neo:
         is_prop_rule: Callable = is_prop_rule_default,
         is_edge_rule: Callable = is_edge_rule_default,
         format_edge_col_name: Callable = format_edge_col_name_default,
-        edge_label: str = "label",
-        edge_source: str = "source",
-        edge_target: str = "target",
         logger: logging.Logger = None,
     ):
         """The constructor for the Air2Neo class.
@@ -166,9 +163,6 @@ class Air2Neo:
         self.is_prop_rule = is_prop_rule
         self.keep_col_rule = keep_col_rule
         self.format_edge_col_name = format_edge_col_name
-        self.edge_label = edge_label
-        self.edge_source = edge_source
-        self.edge_target = edge_target
 
     def run(self, clean_ingest: bool = False) -> None:
         """_summary_
@@ -243,13 +237,7 @@ class Air2Neo:
                     row_id, edges = row["id"], row["edges"]
                     for k, v in edges.items():
                         for v_ in v:
-                            edge_list.append(
-                                {
-                                    self.edge_source: row_id,
-                                    self.edge_target: v_,
-                                    self.edge_label: k,
-                                }
-                            )
+                            edge_list.append((row_id, v_, k)) # (source, target, label)
 
                 self.logger.info(
                     'Creating %s edges for table "%s"...', len(edge_list), table
@@ -323,8 +311,8 @@ class Air2Neo:
             log (Any, optional): The logger to use. Defaults to logger.
         """
         cypher = (
-            f"CREATE CONSTRAINT IF NOT EXISTS"
-            f"ON (n:{label})"
+            f"CREATE CONSTRAINT IF NOT EXISTS "
+            f"ON (n:{label}) "
             f"ASSERT n.{constraint} IS UNIQUE"
         )
         res = tx.run(cypher)
@@ -342,41 +330,36 @@ class Air2Neo:
             log (Any, optional): The logger to use. Defaults to logger.
         """
         cypher = (
-            f"UNWIND $node_list AS node"
-            f"MERGE (n:{label} {{{self.id_property}: node.{self.id_property}}})"
-            "SET n = node"
+            f"UNWIND $node_list AS node "
+            f"MERGE (n:{label} {{{self.id_property}: node.{self.id_property}}}) "
+            f"SET n = node"
         )
         res = tx.run(cypher, node_list=node_list)
         return res
 
     def neo4jop_batch_create_edge(
-        self, tx: Transaction, edge_list: Sequence[Dict[str, str]]
+        self, tx: Transaction, edge_list: Sequence[Tuple[str, str, str]]
     ):
         """Creates a batch of edges.
 
         Args:
             tx (Transaction): The Neo4j transaction to use.
-            edge_list (Sequence[Dict[str, str]]): The list of edges to create.
-            The dict format is:
-            {
-                'source': '<source_id>',
-                'target': '<target_id>',
-                'label': '<edge_label>',
-            }
-            The name of the dict keys are in config, and are the following, respectively:
-                edge_source, edge_target, edge_label.
+            edge_list (Sequence[Tuple[str, str, str]]): The list of edges to create.
+            The tuple format is:
+                (source_id, target_id, edge_label)
+                Example: ('recSOURCEXXXXXX', 'recTARGETXXXXX', 'IN_INDUSTRY')
             log (Any, optional): The logger to use. Defaults to logger.
         """
         cypher = (
-            f"UNWIND $edge_list AS edge"
-            f"MATCH (n) WHERE n.{self.id_property} = edge.{self.edge_source}"
-            f"MATCH (m) WHERE m.{self.id_property} = edge.{self.edge_target}"
-            f"OPTIONAL MATCH (n)-[rel]-(m)"
-            f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes"
-            f"WHERE NOT edge.{self.edge_label} IN relTypes"
-            f"CALL apoc.create.relationship(n, edge.{self.edge_label}, NULL, m)"
-            f"YIELD rel"
-            f"RETURN n, m, rel"
+            f"UNWIND $edge_list AS edge "
+            f"MATCH (n) WHERE n.{self.id_property} = edge[0] "
+            f"MATCH (m) WHERE m.{self.id_property} = edge[1] "
+            f"OPTIONAL MATCH (n)-[rel]-(m) "
+            f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
+            f"WHERE NOT edge[2] IN relTypes "
+            f"CALL apoc.create.relationship(n, edge[2], NULL, m) "
+            f"YIELD rel "
+            f"RETURN 0"
         )
         res = tx.run(cypher, edge_list=edge_list)
         return res
