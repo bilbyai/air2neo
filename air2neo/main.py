@@ -164,12 +164,11 @@ class Air2Neo:
         self.keep_col_rule = keep_col_rule
         self.format_edge_col_name = format_edge_col_name
 
-    def run(self, clean_ingest: bool = False) -> None:
+    def run(self) -> None:
         """_summary_
 
         Args:
-            clean_ingest (bool, optional): If set to true, the Neo4j database
-            will be completely dropped before ingesting data. Defaults to False.
+            None
 
         Returns:
             None
@@ -194,11 +193,6 @@ class Air2Neo:
 
         self.logger.info("Creating Neo4j session...")
         with self.neo4j_driver.session() as session:
-
-            # If clean_ingest is set to true, drop the entire database.
-            if clean_ingest:
-                self.logger.info("Dropping entire Neo4j database...")
-                session.run("MATCH (n) DETACH DELETE n")
 
             # Create Nodes
             for table, df in dfs:
