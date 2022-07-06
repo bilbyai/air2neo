@@ -31,7 +31,7 @@ tox:
 	tox -e py
 
 coverage:
-	pytest --cov=pyairtable --cov-report=html
+	pytest --cov=air2neo --cov-report=html
 	open htmlcov/index.html
 
 lint:
