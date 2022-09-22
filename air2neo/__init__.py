@@ -1,3 +1,3 @@
-__version__ = '1.1.1'
+__version__ = "1.1.1"
 
-from .main import Air2Neo
+from .main import Air2Neo, IngestionUpdateType, MetatableConfig
