@@ -53,4 +53,6 @@ def format_edge_col_name_default(col: str) -> str:
     Returns:
         str: The formatted column name.
     """
-    return col.split("__")[0]
+    if not isinstance(column_name, str):
+        raise TypeError("column_name must be a string.")
+    return column_name.split("__")[0]
