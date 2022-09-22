@@ -13,7 +13,7 @@ function bump {
         version="$previousVersion"
         return
     fi
-    sed -i "s/^__version__ = .*$/__version__ = \"$version\"/" air2neo/__init__.py
+    sed -i "" "s/^__version__ = .*$/__version__ = \"$version\"/" air2neo/__init__.py
     echo "Bumped __version__ to $version"
 }
 
