@@ -1,0 +1,5 @@
+[BASIC]
+good-names=tx,dt
+
+[MESSAGES CONTROL]
+disable=C0114,C0103
