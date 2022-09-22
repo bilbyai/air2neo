@@ -29,6 +29,8 @@ a2n = Air2Neo(
         edges_last_ingested_col,            # "edgesLastIngested",
         airtable_id_property_in_neo4j,      # "_aid" (The name of the property in Neo4j that stores the Airtable ID, defaults to)
         format_edge_col_name,               # "function that formats edge column names. Removes everything after a double-underscore, e.g. IN_INDUSTRY__BANK is renamed to IN_INDUSTRY",
+        airtable_api_key,                   # "Airtable API key",
+        airtable_base_id,                   # "Airtable base ID",
     ),
 )
 a2n.run()
