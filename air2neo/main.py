@@ -368,110 +368,6 @@ class Air2Neo:
         """Create an Air2Neo instance. This class is the object that will run the ingestion process.
 
         Args:
-            table_data (Sequence[Dict]): The data from the Metatable
-
-        Returns:
-            Dict[str, Dict[str, str]]:
-                A map of column names to instructions for how to ingest that column.
-        """
-        instructions = {
-            t["fields"][self.name_col]: {
-                "IndexFor": t["fields"].get(self.index_for_col, []),
-                "ConstrainFor": t["fields"].get(self.constrain_for_col, []),
-                "NodeProperties": t["fields"].get(self.node_properties_col, []),
-                "Edges": t["fields"].get(self.edges_col, []),
-            }
-            for t in table_data
-            if t["fields"].get(self.name_col, None)
-        }
-
-        return instructions
-
-    def _create_label_airtableid_map(
-        self, table_data: Sequence[Dict]
-    ) -> Dict[str, str]:
-        """Create a map of labels to airtable ids. What this means is that given a label name,
-        like "Person", you can get the airtable id for that label in the Metatable, which is
-        required for updating the last ingestion date for that label.
-
-        Args:
-            table_data (Sequence[Dict]): The data from the Metatable
-
-        Returns:
-            Dict[str, str]: A map of labels to airtable ids
-        """
-        return {
-            t["fields"][self.name_col]: t["id"]
-            for t in table_data
-            if t["fields"].get(self.name_col, None)
-        }
-
-    def update_last_ingestion_date(
-        self,
-        label: str,
-        ingestionType: IngestionUpdateType,
-        dt: datetime.datetime = datetime.datetime.now(),
-    ) -> None:
-        """Update the last ingestion date for a label in the Metatable.
-
-        Args:
-            label (str, optional):
-                The label that was ingested, or None if airtableid is provided.
-                Defaults to None.
-            ingestionType (IngestionUpdateType): The type of data that was ingested.
-            dt (datetime.datetime, optional):
-                The datetime to set the last ingestion date to.
-                Defaults to datetime.datetime.now().
-
-        Raises:
-            ValueError: If both label and airtableid are None.
-            ValueError: If label is given but a airtable record for that label could not be found.
-            ValueError: If airtableid is given but is not a valid airtable id.
-        """
-
-        if label is None:
-            raise ValueError("Must provide label")
-
-        airtableid = self.label_airtableid_map.get(label, None)
-        self.logger.info("Airtable record ID for label %s is %s", label, airtableid)
-
-        if not airtableid:
-            raise ValueError(f"Could not find airtable id for label: {label}")
-
-        if not is_airtable_record_id(airtableid):
-            raise ValueError(f"{airtableid} is not a valid airtable record id")
-
-        column_to_update = self.ingestion_type_col_name_map.get(ingestionType, None)
-
-        result = self.table.update(
-            airtableid,
-            {column_to_update: get_airtable_timestamp_str(dt)},
-        )
-        self.logger.info(
-            "Updated last ingestion date for label %s (Record ID: %s) to value: %s",
-            label,
-            airtableid,
-            result["fields"][column_to_update],
-        )
-
-
-class Air2Neo:
-    """ Class for ingesting data from Airtable into Neo4j. """
-    def __init__(
-        self,
-        /,
-        airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
-        airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
-        neo4j_uri: str = environ.get("NEO4J_URI", None),
-        neo4j_username: str = environ.get("NEO4J_USERNAME", None),
-        neo4j_password: str = environ.get("NEO4J_PASSWORD", None),
-        metatable_config: MetatableConfig = None,
-        *,  # Only allow keyword arguments after this point
-        neo4j_driver: GraphDatabase = None,
-    ):
-        """Create an Air2Neo instance. This class is the object that will run the ingestion process.
-
-        Args:
             airtable_api_key (str, optional):
                 The Airtable API key.
                 Defaults to the value of the AIRTABLE_API_KEY environment variable.
@@ -506,21 +402,14 @@ class Air2Neo:
                 "neo4j_username, and neo4j_password must be provided."
             )
 
-        label_table = Table(self.table.api_key, self.table.base_id, label)
-        for records in label_table.iterate(page_size=100, max_records=max_records):
-            for record in records:
-                keys = record["fields"].keys()
-                columns_to_look_for = [c for c in columns_to_look_for if c not in keys]
-                if len(columns_to_look_for) == 0:
-                    self.logger.info("Result is OK for label: %s", label)
-                    return True
+        if neo4j_driver:
+            self.neo4j_driver = neo4j_driver
 
         else:
             self.logger.info("Creating Neo4j driver...")
             self.neo4j_driver = GraphDatabase.driver(
                 neo4j_uri, auth=(neo4j_username, neo4j_password)
             )
-        return False
 
         self.airtable_api_key = airtable_api_key
         self.airtable_base_id = airtable_base_id
@@ -641,7 +530,9 @@ class Air2Neo:
                 are the columns to perform the operation on.
 
         Returns:
-            _type_: _description_
+            List[Dict]:
+                A list of dictionaries, where each dictionary represents a node
+                to be created in Neo4j.
         """
 
         def create_node_dict(
