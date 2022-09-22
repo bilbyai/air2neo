@@ -34,10 +34,25 @@ a2n = Air2Neo(
 a2n.run()
 ```
 
+If you have a .env file like so:
+```
+AIRTABLE_API_KEY=
+AIRTABLE_BASE_ID=
+AIRTABLE_METATABLE_NAME=        # Optional, defaults to "Metatable"
+NEO4J_URI=
+NEO4J_USERNAME=
+NEO4J_PASSWORD=
+```
+You just run the following:
+```python
+from air2neo import Air2Neo
 
+a2n = Air2Neo()
+a2n.run()
+```
 ## Installation
 ```bash
 $ pip install air2neo
 ```
 ## Documentation
-To be implemented. For now, please look at the code docstrings.
+To be implemented. For now, please look at the code docstrings. Sorry about that!
