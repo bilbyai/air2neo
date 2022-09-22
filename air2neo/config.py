@@ -43,7 +43,7 @@ def is_prop_rule_default(column_name: str) -> bool:
     return not is_edge_rule_default(column_name)
 
 
-def format_edge_col_name_default(column_name: str) -> str:
+def format_edge_col_name_default(col: str) -> str:
     """Formats an edge column name.
     Anything after a dunder (double underline) is removed.
 
@@ -53,6 +53,4 @@ def format_edge_col_name_default(column_name: str) -> str:
     Returns:
         str: The formatted column name.
     """
-    if not isinstance(column_name, str):
-        raise TypeError("column_name must be a string.")
-    return column_name.split("__")[0]
+    return col.split("__")[0]
