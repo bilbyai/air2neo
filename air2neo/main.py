@@ -10,12 +10,13 @@ from neo4j import GraphDatabase
 from pandas import DataFrame
 from pyairtable import Table
 
-from air2neo.neo4j_operations import (neo4jop_batch_create_edge,
-                                      neo4jop_batch_create_nodes,
-                                      neo4jop_create_constraint_for_label,
-                                      neo4jop_create_index_for_label)
-
 from .config import format_edge_col_name_default
+from .neo4j_operations import (
+    neo4jop_batch_create_edge,
+    neo4jop_batch_create_nodes,
+    neo4jop_create_constraint_for_label,
+    neo4jop_create_index_for_label,
+)
 from .utils import get_airtable_timestamp_str, is_airtable_record_id
 
 
@@ -92,6 +93,7 @@ class MetatableConfig:
             edges were ingested into Neo4j. This will be updated after each
             ingestion.
     """
+
     # pylint: disable=too-many-instance-attributes
     # 16 is necessary for this class.
 
@@ -201,7 +203,7 @@ class MetatableConfig:
         self.column_instructions = self._create_column_instructions(self.table_data)
 
     def validate(self) -> bool:
-        """ Validate all column names in the Metatable.
+        """Validate all column names in the Metatable.
 
         Returns:
             bool: True if all column names are valid, False otherwise.
@@ -216,7 +218,7 @@ class MetatableConfig:
     def validate_column_names_for_label_in_airtable(
         self, label: str, max_records: int = 1000
     ) -> bool:
-        """ Validate that the column names in the Airtable table match the column names in the
+        """Validate that the column names in the Airtable table match the column names in the
         Metatable. This is useful to ensure that the Metatable is up to date with the Airtable
         table.
 
@@ -352,7 +354,8 @@ class MetatableConfig:
 
 
 class Air2Neo:
-    """ Class for ingesting data from Airtable into Neo4j. """
+    """Class for ingesting data from Airtable into Neo4j."""
+
     def __init__(
         self,
         /,
@@ -418,7 +421,7 @@ class Air2Neo:
         self.metatable_config = metatable_config or MetatableConfig()
 
     def run(self) -> None:
-        """ Run the ingestion process. """
+        """Run the ingestion process."""
         self.logger.info("Starting Airtable to Neo4j ingest job.")
         start_time = perf_counter()
 
