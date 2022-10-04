@@ -12,9 +12,12 @@ from pyairtable import Table
 from requests import HTTPError
 
 from .config import format_edge_col_name_default
-from .neo4j_operations import (neo4jop_batch_create_edge, neo4jop_batch_create_nodes,
-                               neo4jop_create_constraint_for_label,
-                               neo4jop_create_index_for_label)
+from .neo4j_operations import (
+    neo4jop_batch_create_edge,
+    neo4jop_batch_create_nodes,
+    neo4jop_create_constraint_for_label,
+    neo4jop_create_index_for_label,
+)
 from .utils import get_airtable_timestamp_str, is_airtable_record_id
 
 
