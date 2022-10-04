@@ -462,6 +462,11 @@ class Air2Neo:
                         id_property=self.metatable_config.airtable_id_property_in_neo4j,
                     )
                     tx.commit()
+                    self.metatable_config.update_last_ingestion_date(
+                        label,
+                        IngestionUpdateType.node_properties,
+                        datetime.datetime.now(),
+                    )
                     self.logger.info(
                         "Merged %s nodes for table %s.", len(node_list), label
                     )
@@ -482,6 +487,9 @@ class Air2Neo:
                         id_property=self.metatable_config.airtable_id_property_in_neo4j,
                     )
                     tx.commit()
+                    self.metatable_config.update_last_ingestion_date(
+                        label, IngestionUpdateType.edges, datetime.datetime.now()
+                    )
                     self.logger.info(
                         "Merged %s edges for table %s.", len(edge_list), label
                     )
