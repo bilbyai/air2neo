@@ -11,12 +11,9 @@ from pandas import DataFrame
 from pyairtable import Table
 
 from .config import format_edge_col_name_default
-from .neo4j_operations import (
-    neo4jop_batch_create_edge,
-    neo4jop_batch_create_nodes,
-    neo4jop_create_constraint_for_label,
-    neo4jop_create_index_for_label,
-)
+from .neo4j_operations import (neo4jop_batch_create_edge, neo4jop_batch_create_nodes,
+                               neo4jop_create_constraint_for_label,
+                               neo4jop_create_index_for_label)
 from .utils import get_airtable_timestamp_str, is_airtable_record_id
 
 
@@ -92,6 +89,9 @@ class MetatableConfig:
         - EdgesLastIngested: A timestamp column that contains the last time the
             edges were ingested into Neo4j. This will be updated after each
             ingestion.
+        - TranslationId: A single-line text column that contains the name of the
+            column in the Airtable table that contains the ID if the table is a
+            synced table and needs to be translated to a different ID.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -108,6 +108,7 @@ class MetatableConfig:
         edges_col: str = "Edges",
         node_properties_last_ingested_col: str = "NodePropertiesLastIngested",
         edges_last_ingested_col: str = "EdgesLastIngested",
+        translation_id_col: str = "TranslationId",
         airtable_id_property_in_neo4j: str = "_aid",
         format_edge_col_name: Callable[[str], str] = format_edge_col_name_default,
         airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
@@ -149,6 +150,10 @@ class MetatableConfig:
                 The name of the column in the Metatable that contains the last time the edges were
                 ingested into Neo4j. This will be updated after each ingestion.
                 Defaults to "EdgesLastIngested".
+            translation_id_col (str, optional):
+                The name of the column in the Metatable that contains the name of the column in the
+                Airtable table that contains the ID if the table is a synced table and needs to be
+                translated to a different ID. Defaults to "TranslationId".
             airtable_id_property_in_neo4j (str, optional):
                 The name of the property in Neo4j that will contain the Airtable ID for each node.
                 Defaults to "_aid".
@@ -176,6 +181,7 @@ class MetatableConfig:
         self.edges_col = edges_col
         self.node_properties_last_ingested_col = node_properties_last_ingested_col
         self.edges_last_ingested_col = edges_last_ingested_col
+        self.translation_id_col = translation_id_col
 
         # configs
         self.airtable_id_property_in_neo4j = airtable_id_property_in_neo4j
@@ -278,6 +284,7 @@ class MetatableConfig:
                 "ConstrainFor": t["fields"].get(self.constrain_for_col, []),
                 "NodeProperties": t["fields"].get(self.node_properties_col, []),
                 "Edges": t["fields"].get(self.edges_col, []),
+                "TranslationId": t["fields"].get(self.translation_id_col, None),
             }
             for t in table_data
             if t["fields"].get(self.name_col, None)
