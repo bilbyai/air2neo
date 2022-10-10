@@ -103,7 +103,6 @@ class MetatableConfig:
 
     def __init__(
         self,
-        table_name: str = "Metatable",
         table: Table = None,
         name_col: str = "Name",
         index_for_col: str = "IndexFor",
@@ -117,13 +116,12 @@ class MetatableConfig:
         format_edge_col_name: Callable[[str], str] = format_edge_col_name_default,
         airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
         airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
+        table_name: str = "Metatable",
     ):
         """Initialize the MetatableConfig object.
 
         Args:
-            table_name (str, optional):
-                The string name of the Metatable. Defaults to "Metatable".
-            table (Table, optional):
+            table (pyairtable.Table, optional):
                 The pyairtable Table object for the Metatable. Defaults to None,
                 but will be created if table_name is provided.
             name_col (str, optional):
@@ -171,6 +169,8 @@ class MetatableConfig:
             airtable_base_id (str, optional):
                 The Airtable base ID. Defaults to the value of the AIRTABLE_BASE_ID environment
                 variable.
+            table_name (str, optional):
+                The string name of the Metatable. Defaults to "Metatable".
         """
         # pylint: disable=too-many-arguments
 
@@ -194,14 +194,29 @@ class MetatableConfig:
         # logging
         self.logger = _create_logger()
 
-        # create the table if table_name is provided and table is none
-        if table is None and table_name is not None:
-            self.table = Table(
-                api_key=airtable_api_key,
-                base_id=airtable_base_id,
-                table_name=table_name,
-            )
-        # at this point, self.table should be set.
+        self.table = None
+        self.table_data = None
+        self.ingestion_type_col_name_map = None
+        self.label_airtableid_map = None
+        self.column_instructions = None
+
+        if table is not None:
+            self.init_table(table)
+
+        if (
+            airtable_api_key is not None
+            and airtable_base_id is not None
+            and table_name is not None
+        ):
+            self.init_table(Table(airtable_api_key, airtable_base_id, table_name))
+
+    def init_table(self, meta_table: Table) -> None:
+        """Embed the table reference, retrieve the table data, and do some preprocessing.
+
+        Args:
+            meta_table (Table): The pyairtable Table object for the Metatable.
+        """
+        self.table = meta_table
         self.table_data = self.table.all()
 
         self.ingestion_type_col_name_map = {
@@ -214,6 +229,8 @@ class MetatableConfig:
 
     def validate(self) -> bool:
         """Validate all column names in the Metatable.
+
+        Currently, this function doesn't check everything, but it will be expanded in the future.
 
         Returns:
             bool: True if all column names are valid, False otherwise.
@@ -234,7 +251,9 @@ class MetatableConfig:
 
         Args:
             label (str): The label of the table in Airtable.
-            max_records (int, optional): The maximum number of records to check. Defaults to 1000.
+            max_records (int, optional): The maximum number of records to check. This is like how
+                Excel will check the first 200 rows by default to check the data type when importing
+                CSV files. Defaults to 1000.
 
         Returns:
             bool: True if all column names are found, False otherwise.
@@ -376,9 +395,11 @@ class Air2Neo:
         /,
         airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
         airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
+        metatable_name: str = environ.get("AIRTABLE_METATABLE_NAME", "Metatable"),
         neo4j_uri: str = environ.get("NEO4J_URI", None),
         neo4j_username: str = environ.get("NEO4J_USERNAME", None),
         neo4j_password: str = environ.get("NEO4J_PASSWORD", None),
+        metatable: Table = None,
         metatable_config: MetatableConfig = None,
         *,  # Only allow keyword arguments after this point
         neo4j_driver: GraphDatabase = None,
@@ -392,6 +413,10 @@ class Air2Neo:
             airtable_base_id (str, optional):
                 The Airtable base id.
                 Defaults to the value of the AIRTABLE_BASE_ID environment variable.
+            metatable_name (str, optional):
+                The name of the Metatable.
+                Defaults to the value of the AIRTABLE_METATABLE_NAME environment variable, or
+                "Metatable" if that environment variable is not set.
             neo4j_uri (str, optional):
                 The Neo4j URI.
                 Defaults to the value of the NEO4J_URI environment variable.
@@ -401,6 +426,9 @@ class Air2Neo:
             neo4j_password (str, optional):
                 The Neo4j password.
                 Defaults to the value of the NEO4J_PASSWORD environment variable.
+            metatable (Table, optional):
+                An Airtable Table object for the Metatable.
+                Defaults to None.
             metatable_config (MetatableConfig, optional):
                 The configuration for the Metatable.
                 If not provided, the default configuration will be used.
@@ -432,8 +460,29 @@ class Air2Neo:
         self.airtable_api_key = airtable_api_key
         self.airtable_base_id = airtable_base_id
 
-        # Default Values
-        self.metatable_config = metatable_config or MetatableConfig()
+        if metatable_config is not None:
+            self.metatable_config = metatable_config
+            return
+
+        # MetatableConfig was not provided, so use the default configuration
+        # Create MetatableConfig
+        self.metatable_config = MetatableConfig()
+
+        # Initialize MetatableConfig table with the Metatable.
+        if metatable is not None:
+            self.metatable_config.init_table(metatable)
+        elif (
+            airtable_api_key is not None
+            and airtable_base_id is not None
+            and metatable_name is not None
+        ):
+            self.metatable_config.init_table(
+                Table(
+                    airtable_api_key,
+                    airtable_base_id,
+                    metatable_name,
+                )
+            )
 
     def run(self) -> None:
         """Run the ingestion process."""
@@ -468,7 +517,9 @@ class Air2Neo:
 
                 with session.begin_transaction() as tx:
                     self.logger.info(
-                        "Creating %s nodes for table %s...", len(node_list), label
+                        "Creating %s nodes for table %s...",
+                        len(node_list),
+                        label,
                     )
                     neo4jop_batch_create_nodes(
                         tx,
@@ -494,7 +545,9 @@ class Air2Neo:
 
                 with session.begin_transaction() as tx:
                     self.logger.info(
-                        "Creating %s edges for table %s...", len(edge_list), label
+                        "Creating %s edges for table %s...",
+                        len(edge_list),
+                        label,
                     )
                     neo4jop_batch_create_edge(
                         tx,
@@ -503,7 +556,9 @@ class Air2Neo:
                     )
                     tx.commit()
                     self.metatable_config.update_last_ingestion_date(
-                        label, IngestionUpdateType.edges, datetime.datetime.now()
+                        label,
+                        IngestionUpdateType.edges,
+                        datetime.datetime.now(),
                     )
                     self.logger.info(
                         "Merged %s edges for table %s.", len(edge_list), label
