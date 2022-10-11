@@ -116,7 +116,7 @@ class MetatableConfig:
         format_edge_col_name: Callable[[str], str] = format_edge_col_name_default,
         airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
         airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
-        table_name: str = "Metatable",
+        metatable_name: str = "Metatable",
     ):
         """Initialize the MetatableConfig object.
 
@@ -169,12 +169,12 @@ class MetatableConfig:
             airtable_base_id (str, optional):
                 The Airtable base ID. Defaults to the value of the AIRTABLE_BASE_ID environment
                 variable.
-            table_name (str, optional):
+            metatable_name (str, optional):
                 The string name of the Metatable. Defaults to "Metatable".
         """
         # pylint: disable=too-many-arguments
 
-        self.table_name = table_name
+        self.metatable_name = metatable_name
         self.table = table
 
         # column mapping
@@ -203,12 +203,20 @@ class MetatableConfig:
         if table is not None:
             self.init_table(table)
 
-        if (
+        elif (
             airtable_api_key is not None
             and airtable_base_id is not None
-            and table_name is not None
+            and self.metatable_name is not None
         ):
-            self.init_table(Table(airtable_api_key, airtable_base_id, table_name))
+            self.init_table(
+                Table(airtable_api_key, airtable_base_id, self.metatable_name)
+            )
+        else:
+            self.logger.warning(
+                "No table provided and no Airtable API key, base ID, or metatable name provided. "
+                "You must call init_table(meta_table: pyairtable.Table) to initialize the "
+                "metatable."
+            )
 
     def init_table(self, meta_table: Table) -> None:
         """Embed the table reference, retrieve the table data, and do some preprocessing.
