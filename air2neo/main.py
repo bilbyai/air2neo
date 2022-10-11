@@ -4,7 +4,7 @@ from enum import Enum
 from logging.config import dictConfig
 from os import environ
 from time import perf_counter
-from typing import Callable, Dict, List, Literal, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple
 
 from neo4j import GraphDatabase
 from pandas import DataFrame
