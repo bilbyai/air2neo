@@ -502,9 +502,11 @@ class Air2Neo:
 
         # This part is in a for-loop because I wanted to convert this to a
         # concurrent job.
-        downloaded_airtables_tup = []
+        self.downloaded_airtables_tup = []
         for label in airtables:
-            downloaded_airtables_tup.append(self._download_airtable(label))
+            self.downloaded_airtables_tup.append(self._download_airtable(label))
+
+        downloaded_airtables_tup = self.downloaded_airtables_tup
 
         with self.neo4j_driver.session() as session:
             # Create Nodes
