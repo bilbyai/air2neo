@@ -510,10 +510,21 @@ class Air2Neo:
 
         with self.neo4j_driver.session() as session:
             # Create Nodes
+
+            self.logger.info("Creating translation ID mappings...")
+            instructions = self.metatable_config.column_instructions
+            translation_id_mapping = self._create_translation_id_mapping(
+                downloaded_airtables_tup, instructions
+            )
+
             for label, airtable_data in downloaded_airtables_tup:
                 self.logger.info('Creating nodes for table "%s"...', label)
-                instructions = self.metatable_config.column_instructions[label]
-                node_list = self._create_node_list(airtable_data, instructions)
+                instructions = self.metatable_config.column_instructions
+                node_list = self._create_node_list(
+                    airtable_data,
+                    instructions[label],
+                    id_mapping=translation_id_mapping,
+                )
 
                 with session.begin_transaction() as tx:
                     self.logger.info(
@@ -540,8 +551,14 @@ class Air2Neo:
             # Create Edges
             for label, airtable_data in downloaded_airtables_tup:
                 self.logger.info('Creating edge dict for table "%s"...', label)
-                instructions = self.metatable_config.column_instructions[label]
-                edge_list = self._create_edge_list(airtable_data, instructions)
+                unmapped_edge_list = self._create_edge_list(
+                    airtable_data, instructions[label]
+                )
+
+                self.logger.info("Replacing Airtable IDs with translation IDs...")
+                edge_list = self._map_edge_list_translation_id(
+                    unmapped_edge_list, translation_id_mapping
+                )
 
                 with session.begin_transaction() as tx:
                     self.logger.info(
@@ -573,6 +590,62 @@ class Air2Neo:
             perf_counter() - start_time,
         )
 
+    def _create_translation_id_mapping(
+        self,
+        downloaded_airtables_tup: Sequence[Tuple[str, Sequence[Dict[str, Any]]]],
+        instructions: Dict[str, Dict[str, str]],
+    ) -> Dict[str, str]:
+        id_mapping = {}
+
+        for label, data in downloaded_airtables_tup:
+            instruction = instructions[label]
+            translation_id_col = instruction["TranslationId"]
+
+            if translation_id_col is None:
+                continue
+
+            for record in data:
+                if "TranslationId" not in instruction:
+                    self.logger.warning("No TranslationId column found for %s", label)
+
+                if translation_id_col not in record["fields"]:
+                    self.logger.warning(
+                        "No TranslationId value found for %s, id column: %s",
+                        label,
+                        translation_id_col,
+                    )
+
+                id_mapping[record["id"]] = record["fields"][translation_id_col]
+
+        return id_mapping
+
+    def _map_edge_list_translation_id(
+        self,
+        edge_list: Sequence[List[str]],
+        translation_id_mapping: Dict[str, str],
+    ) -> List[List[str]]:
+        """Replace all occurrences of the Airtable ID with the Translation ID, given
+        the translation ID mapping.
+
+        Args:
+            edge_list (Sequence[Tuple]): List of edges to be mapped.
+            translation_id_mapping (Dict[str, str]): Mapping of Airtable ID to Translation ID.
+
+        Returns:
+            List[Tuple]: List of edges with the Airtable ID replaced with the Translation ID.
+        """
+
+        edge_list = [
+            [
+                translation_id_mapping.get(source_id, source_id),
+                translation_id_mapping.get(target_id, target_id),
+                edge_name,
+            ]
+            for (source_id, target_id, edge_name) in edge_list
+        ]
+
+        return edge_list
+
     def _download_airtable(self, table: Table) -> Tuple[str, DataFrame]:
         """Downloads a single Airtable table and returns it as a DataFrame.
 
@@ -597,7 +670,10 @@ class Air2Neo:
         return name, downloaded_table
 
     def _create_node_list(
-        self, airtable_data: Sequence[Dict], instructions: Dict[str, List[str]]
+        self,
+        airtable_data: Sequence[Dict],
+        instructions: Dict[str, List[str]],
+        id_mapping: Dict[str, str] = None,
     ) -> List[Dict]:
         """Creates a list of nodes from a single Airtable table.
 
@@ -622,7 +698,9 @@ class Air2Neo:
             d = {
                 k: v for k, v in record["fields"].items() if k in node_property_columns
             }
-            d[self.metatable_config.airtable_id_property_in_neo4j] = record["id"]
+            d[self.metatable_config.airtable_id_property_in_neo4j] = id_mapping.get(
+                record["id"], record["id"]
+            )
             return d
 
         node_property_columns = instructions["NodeProperties"]
@@ -633,25 +711,26 @@ class Air2Neo:
         return node_list
 
     def _create_edge_list(
-        self, airtable_data: Sequence[Dict], instructions: Dict
-    ) -> List[Tuple]:
+        self, airtable_data: Sequence[Dict], instruction: Dict[str, str]
+    ) -> List[List[str]]:
         """Creates a list of edges from a single Airtable table.
 
         Args:
             airtable_data (Sequence[Dict]):
                 A list of dictionaries, where each dictionary represents a row
                 in the Airtable table.
-            instructions (Dict):
+            instruction (Dict):
                 A dictionary containing instructions for how to create the
                 edges. The keys are the instructions to perform, and the values
                 are the columns to perform the operation on.
 
         Returns:
-            List[Tuple]:
-                A list of tuples, where each tuple represents an edge to be
-                to be created in Neo4j.
+            List[List[str]]:
+                A list of list of strings, where each inner list represents an edge to
+                be to be created in Neo4j. The tuple format is:
+                (source_id, target_id, edge_name)
         """
-        edges_columns = instructions["Edges"]
+        edges_columns = instruction["Edges"]
         edge_list = []
         for record in airtable_data:
             for edge_name in edges_columns:
