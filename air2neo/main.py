@@ -472,25 +472,15 @@ class Air2Neo:
             self.metatable_config = metatable_config
             return
 
-        # MetatableConfig was not provided, so use the default configuration
-        # Create MetatableConfig
-        self.metatable_config = MetatableConfig()
+        # MetatableConfig was not provided, so use whatever was provided to the Air2Neo object
+        self.metatable_config = MetatableConfig(
+            airtable_api_key=airtable_api_key,
+            airtable_base_id=airtable_base_id,
+            metatable_name=metatable_name,
+            table=metatable,
+        )
 
-        # Initialize MetatableConfig table with the Metatable.
-        if metatable is not None:
-            self.metatable_config.init_table(metatable)
-        elif (
-            airtable_api_key is not None
-            and airtable_base_id is not None
-            and metatable_name is not None
-        ):
-            self.metatable_config.init_table(
-                Table(
-                    airtable_api_key,
-                    airtable_base_id,
-                    metatable_name,
-                )
-            )
+        self.downloaded_airtables_tup = []
 
     def run(self) -> None:
         """Run the ingestion process."""
