@@ -1,4 +1,4 @@
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Sequence
 
 from neo4j import Result, Transaction
 
@@ -68,7 +68,7 @@ def neo4jop_create_index_for_label(
 
 def neo4jop_batch_create_edge(
     tx: Transaction,
-    edge_list: Sequence[Tuple[str, str, str]],
+    edge_list: Sequence[List[str, str, str]],
     *,
     id_property: str = "_aid",
     batch_size: int = 1000,
@@ -93,7 +93,8 @@ def neo4jop_batch_create_edge(
         f"OPTIONAL MATCH (n)-[rel]-(m) "
         f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
         f"WHERE NOT edge[2] IN relTypes "
-        f"CALL apoc.create.relationship(n, edge[2], NULL, m)\",\n"
+        f"CALL apoc.create.relationship(n, edge[2], NULL, m)\n",
+        f"YIELD rel\",\n"
         f"{{batchSize: {batch_size}, "
         f"parallel: {str(parallel).lower()}, "
         f"iterateList: {str(iterateList).lower()}, "
