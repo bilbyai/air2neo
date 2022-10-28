@@ -68,7 +68,7 @@ def neo4jop_create_index_for_label(
 
 def neo4jop_batch_create_edge(
     tx: Transaction,
-    edge_list: Sequence[List[str, str, str]],
+    edge_list: Sequence[List[str]],
     *,
     id_property: str = "_aid",
     batch_size: int = 1000,
@@ -100,7 +100,7 @@ def neo4jop_batch_create_edge(
         f"iterateList: {str(iterateList).lower()}, "
         f"params: {{edge_list: $edge_list}}"
         f"}})\n"
-        f"YIELD batch\n"
+        # f"YIELD batch\n"
         f"RETURN batch"
     )
     res = tx.run(cypher, edge_list=edge_list)
