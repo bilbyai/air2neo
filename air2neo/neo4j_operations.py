@@ -93,15 +93,15 @@ def neo4jop_batch_create_edge(
         f"OPTIONAL MATCH (n)-[rel]-(m) "
         f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
         f"WHERE NOT edge[2] IN relTypes "
-        f"CALL apoc.create.relationship(n, edge[2], NULL, m)\n",
-        f"YIELD rel\",\n"
+        f"CALL apoc.create.relationship(n, edge[2], {{}}, m) YIELD rel RETURN COUNT(rel) as num_relationships_created\",\n"
         f"{{batchSize: {batch_size}, "
         f"parallel: {str(parallel).lower()}, "
         f"iterateList: {str(iterateList).lower()}, "
         f"params: {{edge_list: $edge_list}}"
         f"}})\n"
-        # f"YIELD batch\n"
-        f"RETURN batch"
+        f"YIELD batches, total\n"
+        f"RETURN batches, total"
     )
     res = tx.run(cypher, edge_list=edge_list)
+    print(edge_list)
     return res
