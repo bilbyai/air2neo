@@ -21,6 +21,7 @@ a2n = Air2Neo(
         # which is a pyairtable.Table object.
 
         name_col,                           # "Name",
+        view_col,                           # "View", (optional)
         index_for_col,                      # "IndexFor",
         constrain_for_col,                  # "ConstrainFor",
         node_properties_col,                # "NodeProperties",
