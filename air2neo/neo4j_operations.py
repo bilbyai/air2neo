@@ -9,7 +9,6 @@ def neo4jop_batch_create_nodes(
     node_list: Sequence[Dict[str, Any]],
     *,
     id_property: str = "_aid",
-    batch_size: int = 1000,
 ) -> Result:
     """Creates a batch of nodes.
 
@@ -23,13 +22,8 @@ def neo4jop_batch_create_nodes(
         f"MERGE (n:`{label}` {{ {id_property}: node.{id_property} }}) "
         f"SET n = node"
     )
-
-    # Split node_list into batches
-    for i in range(0, len(node_list), batch_size):
-        batch = node_list[i : i + batch_size]
-        tx.run(cypher, node_list=batch)
-        
-    return tx.commit()
+    res = tx.run(cypher, node_list=node_list)
+    return res
 
 
 def neo4jop_create_constraint_for_label(
