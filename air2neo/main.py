@@ -4,7 +4,7 @@ from enum import Enum
 from logging.config import dictConfig
 from os import environ
 from time import perf_counter
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, Optional
 
 from neo4j import GraphDatabase
 from pandas import DataFrame
@@ -105,6 +105,7 @@ class MetatableConfig:
         self,
         table: Table = None,
         name_col: str = "Name",
+        view_col: str = "View",
         index_for_col: str = "IndexFor",
         constrain_for_col: str = "ConstrainFor",
         node_properties_col: str = "NodeProperties",
@@ -128,6 +129,11 @@ class MetatableConfig:
                 The name of the column in the Metatable that contains the table names in Airtable.
                 e.g. If you have a table in Airtable called "Person", you should have a row in the
                 Metatable with the value "Person" in the Name column. Defaults to "Name".
+            view_col (str, optional):
+                The name of the column in the Metatable that contains the table views in Airtable.
+                e.g., If you have a view in Airtable called "Active" for the "Person" table, then
+                you should have a row in the Metatable with the value "Active" in the View column.
+                Defaults to "View".
             index_for_col (str, optional):
                 The name of the column in the Metatable that contains the names of the columns in
                 the Airtable table that should be indexed for the label. This makes the columns
@@ -179,6 +185,7 @@ class MetatableConfig:
 
         # column mapping
         self.name_col = name_col
+        self.view_col = view_col
         self.index_for_col = index_for_col
         self.constrain_for_col = constrain_for_col
         self.node_properties_col = node_properties_col
@@ -316,6 +323,7 @@ class MetatableConfig:
                 "NodeProperties": t["fields"].get(self.node_properties_col, []),
                 "Edges": t["fields"].get(self.edges_col, []),
                 "TranslationId": t["fields"].get(self.translation_id_col, None),
+                "View": t["fields"].get(self.view_col, None),
             }
             for t in table_data
             if t["fields"].get(self.name_col, None)
@@ -489,6 +497,7 @@ class Air2Neo:
 
         self.logger.info("Validating Airtable to Neo4j ingest job...")
         self.metatable_config.validate()
+
         self.logger.info("✨ Validation OK")
 
         self.create_indices_from_metatable()
@@ -504,7 +513,7 @@ class Air2Neo:
         # concurrent job.
         self.downloaded_airtables_tup = []
         for label in airtables:
-            self.downloaded_airtables_tup.append(self._download_airtable(label))
+            self.downloaded_airtables_tup.append(self._download_airtable(label, self.metatable_config.column_instructions[label.table_name][self.metatable_config.view_col], self.metatable_config.column_instructions[label.table_name][self.metatable_config.node_properties_col]))
 
         downloaded_airtables_tup = self.downloaded_airtables_tup
 
@@ -646,11 +655,13 @@ class Air2Neo:
 
         return edge_list
 
-    def _download_airtable(self, table: Table) -> Tuple[str, DataFrame]:
-        """Downloads a single Airtable table and returns it as a DataFrame.
+    def _download_airtable(self, table: Table, view: Optional[str] = None, fields: Optional[List[str]] = None) -> Tuple[str, DataFrame]:
+        """Downloads a single Airtable table with an optional specified view and returns it as a DataFrame.
 
         Args:
             table (Table): A single Airtable table.
+            view (Optional[str], optional): The name of the view you want to use. Defaults to None.
+            fields (Optional[List[str]], optional): The list of fields you want to fetch. Defaults to None.
 
         Returns:
             Tuple[str, DataFrame]: A tuple containing the name of the table,
@@ -659,7 +670,7 @@ class Air2Neo:
         name = table.table_name
         self.logger.info("Downloading Airtable table %s", name)
         start_time = perf_counter()
-        downloaded_table = table.all()
+        downloaded_table = table.all(view=view, fields=fields)
         self.logger.info(
             "Downloaded Airtable table %s (Records: %s) in %0.2f seconds",
             name,
