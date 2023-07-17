@@ -103,5 +103,5 @@ def neo4jop_batch_create_edge(
         f"RETURN batches, total"
     )
     res = tx.run(cypher, edge_list=edge_list)
-    print(edge_list)
+    #print(edge_list)
     return res
