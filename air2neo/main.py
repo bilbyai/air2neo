@@ -497,7 +497,6 @@ class Air2Neo:
 
         self.logger.info("Validating Airtable to Neo4j ingest job...")
         self.metatable_config.validate()
-
         self.logger.info("✨ Validation OK")
 
         self.create_indices_from_metatable()
