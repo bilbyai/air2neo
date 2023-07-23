@@ -1,6 +1,6 @@
+import logging
 from typing import Any, Dict, List, Sequence
-
-from neo4j import Result, Transaction, Session
+from neo4j import Result, Transaction
 from pprint import pprint
 
 def neo4jop_batch_create_nodes(
@@ -67,13 +67,13 @@ def neo4jop_create_index_for_label(
 
 
 def neo4jop_batch_create_edge(  
-    session: Session,
-    #tx: Transaction,  
+    tx: Transaction,  
     edge_list: Sequence[List[str]],  
+    log: logging.Logger,
     *,  
     id_property: str = "_aid",  
-    batch_size: int = 50,  
-    parallel: bool = False,  
+    batch_size: int = 50, # Batch size must be small if using Neo4J Aura Free Tier
+    parallel: bool = False, # Can't run jobs in parallel in order for _counters to be accurate 
     iterateList: bool = True, 
     retries: int = 10, 
 ) -> Result:  
@@ -89,17 +89,10 @@ def neo4jop_batch_create_edge(
     """  
 
     # Delete any stale _counters nodes
-    with session.begin_transaction() as tx:
-        tx.run("MATCH (c:_counters) DELETE c")
-        tx.commit()
+    tx.run("MATCH (c:_counters) DELETE c")
 
     # Create a new _counters node to store the count  
-    with session.begin_transaction() as tx:
-        tx.run("CREATE (c:_counters {sources_not_found: 0, targets_not_found: 0, edges_created: 0, edges_skipped: 0})")
-        tx.commit()
-
-    # XXX - For debug purposes only.
-    #pprint(edge_list)
+    tx.run("CREATE (c:_counters {sources_not_found: 0, targets_not_found: 0, edges_created: 0, edges_skipped: 0})")
 
     cypher = (  
         f"CALL apoc.periodic.iterate("  
@@ -139,37 +132,22 @@ def neo4jop_batch_create_edge(
         f"RETURN batches, total, errorMessages, failedBatches"  
     )  
 
-    with session.begin_transaction() as tx:
-        res = tx.run(cypher, edge_list=edge_list)
-        res_single = res.single()
-        tx.commit()
+    res = tx.run(cypher, edge_list=edge_list)
+    res_single = res.single()
 
-    #res = tx.run(cypher, edge_list=edge_list)
-    #res_single = res.single()
-  
     # Query the count node for the number of created relationships  
-    with session.begin_transaction() as tx:
-        count_result = tx.run("MATCH (c:_counters) "
-                              "RETURN c.edges_created as num_edges_created, "
-                              "c.edges_skipped as num_edges_skipped, "
-                              "c.sources_not_found as sources_not_found, "
-                              "c.targets_not_found as targets_not_found")
-        count_record = count_result.single()
-        tx.commit()
+    count_result = tx.run("MATCH (c:_counters) "
+                          "RETURN c.edges_created as num_edges_created, "
+                          "c.edges_skipped as num_edges_skipped, "
+                          "c.sources_not_found as sources_not_found, "
+                          "c.targets_not_found as targets_not_found")
+    count_record = count_result.single()
 
-    #count_result = tx.run("MATCH (report:Report) "  
-    #                      "RETURN report.created as num_relationships_created, "  
-    #                      "report.skipped as num_relationships_skipped")  
-    #count_record = count_result.single()  
-  
     # Delete the _counters node  
-    with session.begin_transaction() as tx:
-        tx.run("MATCH (c:_counters) DELETE c")
-        tx.commit()
+    tx.run("MATCH (c:_counters) DELETE c")
 
-    #tx.run("MATCH (report:Report) DELETE report")  
-  
-    print({  
+    # Log the final status.
+    log.info({  
         "batches": res_single["batches"],  
         "total": res_single["total"],  
         "errorMessages": res_single["errorMessages"],  
