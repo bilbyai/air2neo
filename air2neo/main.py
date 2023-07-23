@@ -556,9 +556,6 @@ class Air2Neo:
                         "Merged %s nodes for table %s.", len(node_list), label
                     )
 
-            # How many edges to process per transaction
-            num_edges_per_transaction = 50000
-
             # Create Edges
             for label, airtable_data in downloaded_airtables_tup:
                 self.logger.info('Creating edge dict for table "%s"...', label)
@@ -575,31 +572,19 @@ class Air2Neo:
                     "Found %s edges for table %s.", len(edge_list), label
                 )
 
-                # Remove duplicate edges
-                #edge_list = [list(edge) for edge in set(tuple(edge) for edge in edge_list)]
-
-                #self.logger.info(
-                #    "Unique %s edges for table %s.", len(edge_list), label
-                #)
-
-                # Divide the edge_list into smaller chunks per transaction
-                edge_list_chunks = list(self._divide_chunks(edge_list, num_edges_per_transaction))
-
-                # Run each chunk in a separate transaction
-                for chunk in edge_list_chunks:
-                    #with session.begin_transaction() as tx:
+                with session.begin_transaction() as tx:
                     self.logger.info(
                         "Processing %s edges for table %s...",
-                        len(chunk),
+                        len(edge_list),
                         label,
                     )
                     neo4jop_batch_create_edge(
-                        session,
-                        #tx,
-                        edge_list=chunk,
+                        tx,
+                        edge_list=edge_list,
                         id_property=self.metatable_config.airtable_id_property_in_neo4j,
+                        log=self.logger,
                     )
-                    #tx.commit()
+                    tx.commit()
 
                 self.metatable_config.update_last_ingestion_date(
                     label,
@@ -618,12 +603,6 @@ class Air2Neo:
             "Airtable to Neo4j ingest job completed in %0.2f seconds.",
             perf_counter() - start_time,
         )
-
-    def _divide_chunks(self,
-                      l: List, 
-                      chunk_size: int) -> Generator[List, None, None]:
-        for i in range(0, len(l), chunk_size):
-            yield l[i:i + chunk_size]
 
     def _create_translation_id_mapping(
         self,
