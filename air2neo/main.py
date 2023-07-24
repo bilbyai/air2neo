@@ -469,8 +469,11 @@ class Air2Neo:
 
         else:
             self.logger.info("Creating Neo4j driver...")
+            # Configure the connection timeout
+            connection_timeout = 300 # seconds
+            max_connection_pool_size = 50
             self.neo4j_driver = GraphDatabase.driver(
-                neo4j_uri, auth=(neo4j_username, neo4j_password)
+                neo4j_uri, auth=(neo4j_username, neo4j_password), connection_timeout=connection_timeout, max_connection_pool_size=max_connection_pool_size
             )
 
         self.airtable_api_key = airtable_api_key
@@ -569,22 +572,15 @@ class Air2Neo:
                 )
 
                 self.logger.info(
-                    "Found %s edges for table %s.", len(edge_list), label
+                    "Processing %s edges for table %s.", len(edge_list), label
                 )
 
-                with session.begin_transaction() as tx:
-                    self.logger.info(
-                        "Processing %s edges for table %s...",
-                        len(edge_list),
-                        label,
-                    )
-                    neo4jop_batch_create_edge(
-                        tx,
-                        edge_list=edge_list,
-                        id_property=self.metatable_config.airtable_id_property_in_neo4j,
-                        log=self.logger,
-                    )
-                    tx.commit()
+                neo4jop_batch_create_edge(
+                    session,
+                    edge_list=edge_list,
+                    id_property=self.metatable_config.airtable_id_property_in_neo4j,
+                    log=self.logger,
+                )
 
                 self.metatable_config.update_last_ingestion_date(
                     label,

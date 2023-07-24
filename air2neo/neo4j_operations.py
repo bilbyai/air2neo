@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Sequence
-from neo4j import Result, Transaction
+from neo4j import Result, Transaction, Session
 from pprint import pprint
 
 def neo4jop_batch_create_nodes(
@@ -67,7 +67,8 @@ def neo4jop_create_index_for_label(
 
 
 def neo4jop_batch_create_edge(  
-    tx: Transaction,  
+    session: Session,
+    #tx: Transaction,  
     edge_list: Sequence[List[str]],  
     log: logging.Logger,
     *,  
@@ -88,11 +89,14 @@ def neo4jop_batch_create_edge(
         log (Any, optional): The logger to use. Defaults to logger.  
     """  
 
-    # Delete any stale _counters nodes
-    tx.run("MATCH (c:_counters) DELETE c")
+    # Recreate the _counters nodes in an earlier, separate transaction.
+    with session.begin_transaction() as tx:
+        # Delete any stale _counters nodes
+        tx.run("MATCH (c:_counters) DELETE c")
 
-    # Create a new _counters node to store the count  
-    tx.run("CREATE (c:_counters {sources_not_found: 0, targets_not_found: 0, edges_created: 0, edges_skipped: 0})")
+        # Create a new _counters node to store the count  
+        tx.run("CREATE (c:_counters {sources_not_found: 0, targets_not_found: 0, edges_created: 0, edges_skipped: 0})")
+        tx.commit()
 
     cypher = (  
         f"CALL apoc.periodic.iterate("  
@@ -132,19 +136,22 @@ def neo4jop_batch_create_edge(
         f"RETURN batches, total, errorMessages, failedBatches"  
     )  
 
-    res = tx.run(cypher, edge_list=edge_list)
-    res_single = res.single()
+    # Now, execute the main transaction, using the _counters Node.
+    with session.begin_transaction() as tx:
+        res = tx.run(cypher, edge_list=edge_list)
+        res_single = res.single()
 
-    # Query the count node for the number of created relationships  
-    count_result = tx.run("MATCH (c:_counters) "
-                          "RETURN c.edges_created as num_edges_created, "
-                          "c.edges_skipped as num_edges_skipped, "
-                          "c.sources_not_found as sources_not_found, "
-                          "c.targets_not_found as targets_not_found")
-    count_record = count_result.single()
+        # Query the count node for the number of created relationships  
+        count_result = tx.run("MATCH (c:_counters) "
+                              "RETURN c.edges_created as num_edges_created, "
+                              "c.edges_skipped as num_edges_skipped, "
+                              "c.sources_not_found as sources_not_found, "
+                              "c.targets_not_found as targets_not_found")
+        count_record = count_result.single()
 
-    # Delete the _counters node  
-    tx.run("MATCH (c:_counters) DELETE c")
+        # Delete the _counters node  
+        tx.run("MATCH (c:_counters) DELETE c")
+        tx.commit()
 
     # Log the final status.
     log.info({  
