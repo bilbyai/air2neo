@@ -1,6 +1,12 @@
-from typing import Any, Dict, List, Sequence
+import logging
+from typing import Any, Dict, List, Optional, Sequence
 
-from neo4j import Result, Transaction
+from neo4j import Result, Session, Transaction
+
+
+def _quote_cypher_identifier(identifier: str) -> str:
+    """Quote a Cypher identifier, escaping embedded backticks."""
+    return f"`{identifier.replace('`', '``')}`"
 
 
 def neo4jop_batch_create_nodes(
@@ -17,16 +23,21 @@ def neo4jop_batch_create_nodes(
         label (str): The label of the nodes.
         node_list (Sequence[Dict[str, Any]]): The list of nodes to create.
     """
+    label_identifier = _quote_cypher_identifier(label)
+    id_property_identifier = _quote_cypher_identifier(id_property)
     cypher = (
         f"UNWIND $node_list AS node "
-        f"MERGE (n:`{label}` {{ {id_property}: node.{id_property} }}) "
+        f"MERGE (n:{label_identifier} {{ {id_property_identifier}: "
+        f"node.{id_property_identifier} }}) "
         f"SET n = node"
     )
     res = tx.run(cypher, node_list=node_list)
     return res
 
 
-def neo4jop_create_constraint_for_label(tx: Transaction, label: str, constraint: str) -> Result:
+def neo4jop_create_constraint_for_label(
+    tx: Transaction, label: str, constraint: Sequence[str]
+) -> Result:
     """Creates a constraint for a label.
 
     Args:
@@ -35,17 +46,22 @@ def neo4jop_create_constraint_for_label(tx: Transaction, label: str, constraint:
         constraint (str): The constraint to create.
         log (Any, optional): The logger to use. Defaults to logger.
     """
-    constraint_properties = ", ".join([f"n.`{prop}`" for prop in constraint])
+    label_identifier = _quote_cypher_identifier(label)
+    constraint_properties = ", ".join(
+        [f"n.{_quote_cypher_identifier(prop)}" for prop in constraint]
+    )
     cypher = (
         f"CREATE CONSTRAINT IF NOT EXISTS "
-        f"FOR (n:`{label}`)"
+        f"FOR (n:{label_identifier})"
         f"REQUIRE ({constraint_properties}) IS UNIQUE"
     )
     res = tx.run(cypher)
     return res
 
 
-def neo4jop_create_index_for_label(tx: Transaction, label: str, indexes: Sequence[str]) -> Result:
+def neo4jop_create_index_for_label(
+    tx: Transaction, label: str, indexes: Sequence[str]
+) -> Result:
     """Creates an index for a label.
 
     Args:
@@ -56,87 +72,74 @@ def neo4jop_create_index_for_label(tx: Transaction, label: str, indexes: Sequenc
     Returns:
         Result: The result of the query.
     """
-    index_query = ", ".join([f"n.`{index}`" for index in indexes])
-    cypher = f"CREATE INDEX IF NOT EXISTS FOR (n:`{label}`) ON ({index_query})"
+    label_identifier = _quote_cypher_identifier(label)
+    index_query = ", ".join(
+        [f"n.{_quote_cypher_identifier(index)}" for index in indexes]
+    )
+    cypher = f"CREATE INDEX IF NOT EXISTS FOR (n:{label_identifier}) ON ({index_query})"
     res = tx.run(cypher)
     return res
 
 
 def neo4jop_batch_create_edge(
-    tx: Transaction,
+    session: Session,
     edge_list: Sequence[List[str]],
+    log: Optional[logging.Logger] = None,
     *,
     id_property: str = "_aid",
     batch_size: int = 1000,
-    parallel: bool = True,
-    iterateList: bool = True,
-) -> Result:
+) -> Optional[Result]:
     """Creates a batch of edges.
 
     Args:
-        tx (Transaction): The Neo4j transaction to use.
+        session (Session): The Neo4j session to use.
         edge_list (Sequence[Tuple[str, str, str]]): The list of edges to create.
         The tuple format is:
             (source_id, target_id, edge_label)
             Example: ('recSOURCEXXXXXX', 'recTARGETXXXXX', 'IN_INDUSTRY')
         log (Any, optional): The logger to use. Defaults to logger.
     """
-    # cypher = (
-    #     f"CALL apoc.periodic.iterate("
-    #     f'"UNWIND $edge_list AS edge RETURN edge",'
-    #     f'"MATCH (n) WHERE n.`{id_property}` = edge[0] '
-    #     f"MATCH (m) WHERE m.`{id_property}` = edge[1] "
-    #     f"OPTIONAL MATCH (n)-[rel]-(m) "
-    #     f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
-    #     f"WHERE NOT edge[2] IN relTypes "
-    #     f"CALL apoc.create.relationship(n, edge[2], NULL, m) ",
-    #     f'YIELD rel", '
-    #     f"{{batchSize: {batch_size}, "
-    #     f"parallel: {str(parallel).lower()}, "
-    #     f"iterateList: {str(iterateList).lower()}, "
-    #     f"params: {{edge_list: $edge_list}}"
-    #     f"}})"
-    #     f"RETURN 0",
-    # )
+    if not edge_list:
+        if log:
+            log.info("No edges to merge.")
+        return None
 
-    print(edge_list)
+    id_property_identifier = _quote_cypher_identifier(id_property)
+    cypher = (
+        "UNWIND $edge_list AS edge "
+        "WITH edge[0] AS source_id, edge[1] AS target_id, edge[2] AS edge_type "
+        f"OPTIONAL MATCH (source) WHERE source.{id_property_identifier} = source_id "
+        f"OPTIONAL MATCH (target) WHERE target.{id_property_identifier} = target_id "
+        "WITH source, target, edge_type "
+        "FOREACH (_ IN CASE "
+        "WHEN source IS NULL OR target IS NULL THEN [] ELSE [1] END | "
+        "MERGE (source)-[:$(edge_type)]->(target)) "
+        "RETURN count(*) AS total, "
+        "sum(CASE WHEN source IS NULL THEN 1 ELSE 0 END) AS sources_not_found, "
+        "sum(CASE WHEN target IS NULL THEN 1 ELSE 0 END) AS targets_not_found, "
+        "sum(CASE WHEN source IS NOT NULL AND target IS NOT NULL THEN 1 ELSE 0 END) "
+        "AS relationships_processed"
+    )
 
-    cypher = f"""
-        CALL apoc.periodic.iterate(
-            "UNWIND $edge_list AS edge RETURN edge",
-            "MATCH (n) WHERE n.`{id_property}` = edge[0] MATCH (m) WHERE m.`{id_property}` = edge[1] OPTIONAL MATCH (n)-[rel]-(m) WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes WHERE NOT edge[2] IN relTypes CALL apoc.create.relationship(n, edge[2], NULL, m) YIELD rel RETURN rel",
-            {{
-                batchSize: {batch_size},
-                parallel: {str(parallel).lower()},
-                iterateList: {str(iterateList).lower()},
-                params: {{edge_list: $edge_list}}
-            }}
-        )
-        YIELD batches, total, timeTaken, committedOperations, failedOperations, failedBatches, retries, errorMessages, batch, operations, wasTerminated, failedParams, updateStatistics
-        RETURN batches, total, timeTaken, committedOperations, failedOperations, failedBatches, retries, errorMessages, batch, operations, wasTerminated, failedParams, updateStatistics
-    """
-    # cypher = (
-    #     "CALL apoc.periodic.iterate(",
-    #     '"UNWIND $edge_list AS edge RETURN edge"',
-    #     f'"MATCH (n) WHERE n.`{id_property}` = edge[0] MATCH (m) WHERE m.`{id_property}` = edge[1] OPTIONAL MATCH (n)-[rel]-(m) WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes WHERE NOT edge[2] IN relTypes CALL apoc.create.relationship(n, edge[2], NULL, m) YIELD rel"',
-    #     f"""{{
-    #         batchSize: {batch_size},
-    #         parallel: {str(parallel).lower()},
-    #         iterateList: {str(iterateList).lower()},
-    #         params: {{edge_list: $edge_list}}
-    #     }}""",
-    #     ")",
-    # )
+    stats = {
+        "total": 0,
+        "sources_not_found": 0,
+        "targets_not_found": 0,
+        "relationships_processed": 0,
+    }
+    res = None
+    for start in range(0, len(edge_list), batch_size):
+        batch = edge_list[start : start + batch_size]
+        with session.begin_transaction() as tx:
+            res = tx.run(cypher, edge_list=batch)
+            record = res.single()
+            tx.commit()
 
-    print("Running query: ", cypher)
+        if record:
+            for key in stats:
+                stats[key] += record[key] or 0
 
-    try:
-        res = tx.run(cypher, edge_list=edge_list)
-        print("Query ran successfully")
-        print(res.data())
-    except Exception as e:
-        print(e)
-        print("Cypher Query Ran: ", cypher)
+    if log:
+        log.info(stats)
 
-        raise e
     return res

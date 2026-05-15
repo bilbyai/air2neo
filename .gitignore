@@ -163,7 +163,6 @@ cython_debug/
 
 .env
 .env.*
-.vscode
 .venv
 
 pip-wheel-metadata
