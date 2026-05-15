@@ -58,6 +58,12 @@ a2n.run()
 pip install air2neo
 ```
 
+Or run it without installing:
+
+```bash
+uvx air2neo
+```
+
 ## Run the migration
 Set the required environment variables, either in your shell or in a `.env` file:
 
@@ -75,6 +81,24 @@ Run the migration directly with uvx:
 ```bash
 uvx air2neo
 ```
+
+CLI arguments override environment variables and `.env` values:
+
+```bash
+uvx air2neo \
+  --airtable-api-key "$AIRTABLE_API_KEY" \
+  --airtable-base-id "$AIRTABLE_BASE_ID" \
+  --metatable-name "Metatable" \
+  --neo4j-uri "$NEO4J_URI" \
+  --neo4j-username "$NEO4J_USERNAME" \
+  --neo4j-password "$NEO4J_PASSWORD"
+```
+
+Config priority is:
+
+1. CLI arguments
+2. Environment variables, including values loaded from `.env`
+3. Built-in default for `AIRTABLE_METATABLE_NAME`, which is `Metatable`
 
 To use an explicit command name:
 

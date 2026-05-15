@@ -13,7 +13,7 @@ resolution-markers = [
 
 [[package]]
 name = "air2neo"
-version = "2.2.1"
+version = "2.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "neo4j" },

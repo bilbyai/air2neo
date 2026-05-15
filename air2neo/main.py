@@ -115,8 +115,8 @@ class MetatableConfig:
         translation_id_col: str = "TranslationId",
         airtable_id_property_in_neo4j: str = "_aid",
         format_edge_col_name: Callable[[str], str] = format_edge_col_name_default,
-        airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
-        airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
+        airtable_api_key: Optional[str] = None,
+        airtable_base_id: Optional[str] = None,
         metatable_name: str = "Metatable",
     ):
         """Initialize the MetatableConfig object.
@@ -180,7 +180,11 @@ class MetatableConfig:
         """
         # pylint: disable=too-many-arguments
 
-        self.metatable_name = metatable_name
+        airtable_api_key = airtable_api_key or environ.get("AIRTABLE_API_KEY", None)
+        airtable_base_id = airtable_base_id or environ.get("AIRTABLE_BASE_ID", None)
+        self.metatable_name = metatable_name or environ.get(
+            "AIRTABLE_METATABLE_NAME", "Metatable"
+        )
         self.table = table
 
         # column mapping
@@ -414,12 +418,12 @@ class Air2Neo:
     def __init__(
         self,
         /,
-        airtable_api_key: str = environ.get("AIRTABLE_API_KEY", None),
-        airtable_base_id: str = environ.get("AIRTABLE_BASE_ID", None),
-        metatable_name: str = environ.get("AIRTABLE_METATABLE_NAME", "Metatable"),
-        neo4j_uri: str = environ.get("NEO4J_URI", None),
-        neo4j_username: str = environ.get("NEO4J_USERNAME", None),
-        neo4j_password: str = environ.get("NEO4J_PASSWORD", None),
+        airtable_api_key: Optional[str] = None,
+        airtable_base_id: Optional[str] = None,
+        metatable_name: Optional[str] = None,
+        neo4j_uri: Optional[str] = None,
+        neo4j_username: Optional[str] = None,
+        neo4j_password: Optional[str] = None,
         metatable: Table = None,
         metatable_config: MetatableConfig = None,
         *,  # Only allow keyword arguments after this point
@@ -460,6 +464,14 @@ class Air2Neo:
         # pylint: disable=too-many-arguments
 
         self.logger = _create_logger()
+        airtable_api_key = airtable_api_key or environ.get("AIRTABLE_API_KEY", None)
+        airtable_base_id = airtable_base_id or environ.get("AIRTABLE_BASE_ID", None)
+        metatable_name = metatable_name or environ.get(
+            "AIRTABLE_METATABLE_NAME", "Metatable"
+        )
+        neo4j_uri = neo4j_uri or environ.get("NEO4J_URI", None)
+        neo4j_username = neo4j_username or environ.get("NEO4J_USERNAME", None)
+        neo4j_password = neo4j_password or environ.get("NEO4J_PASSWORD", None)
 
         # Validate Neo4j driver
         # Configure neo4j driver, if not already configured
