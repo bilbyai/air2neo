@@ -26,9 +26,7 @@ def neo4jop_batch_create_nodes(
     return res
 
 
-def neo4jop_create_constraint_for_label(
-    tx: Transaction, label: str, constraint: str
-) -> Result:
+def neo4jop_create_constraint_for_label(tx: Transaction, label: str, constraint: str) -> Result:
     """Creates a constraint for a label.
 
     Args:
@@ -47,9 +45,7 @@ def neo4jop_create_constraint_for_label(
     return res
 
 
-def neo4jop_create_index_for_label(
-    tx: Transaction, label: str, indexes: Sequence[str]
-) -> Result:
+def neo4jop_create_index_for_label(tx: Transaction, label: str, indexes: Sequence[str]) -> Result:
     """Creates an index for a label.
 
     Args:
@@ -85,23 +81,62 @@ def neo4jop_batch_create_edge(
             Example: ('recSOURCEXXXXXX', 'recTARGETXXXXX', 'IN_INDUSTRY')
         log (Any, optional): The logger to use. Defaults to logger.
     """
-    cypher = (
-        f"CALL apoc.periodic.iterate(\n"
-        f"\"UNWIND $edge_list AS edge RETURN edge\",\n"
-        f"\"MATCH (n) WHERE n.{id_property} = edge[0] "
-        f"MATCH (m) WHERE m.{id_property} = edge[1] "
-        f"OPTIONAL MATCH (n)-[rel]-(m) "
-        f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
-        f"WHERE NOT edge[2] IN relTypes "
-        f"CALL apoc.create.relationship(n, edge[2], NULL, m)\n",
-        f"YIELD rel\",\n"
-        f"{{batchSize: {batch_size}, "
-        f"parallel: {str(parallel).lower()}, "
-        f"iterateList: {str(iterateList).lower()}, "
-        f"params: {{edge_list: $edge_list}}"
-        f"}})\n"
-        # f"YIELD batch\n"
-        f"RETURN batch"
-    )
-    res = tx.run(cypher, edge_list=edge_list)
+    # cypher = (
+    #     f"CALL apoc.periodic.iterate("
+    #     f'"UNWIND $edge_list AS edge RETURN edge",'
+    #     f'"MATCH (n) WHERE n.`{id_property}` = edge[0] '
+    #     f"MATCH (m) WHERE m.`{id_property}` = edge[1] "
+    #     f"OPTIONAL MATCH (n)-[rel]-(m) "
+    #     f"WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes "
+    #     f"WHERE NOT edge[2] IN relTypes "
+    #     f"CALL apoc.create.relationship(n, edge[2], NULL, m) ",
+    #     f'YIELD rel", '
+    #     f"{{batchSize: {batch_size}, "
+    #     f"parallel: {str(parallel).lower()}, "
+    #     f"iterateList: {str(iterateList).lower()}, "
+    #     f"params: {{edge_list: $edge_list}}"
+    #     f"}})"
+    #     f"RETURN 0",
+    # )
+
+    print(edge_list)
+
+    cypher = f"""
+        CALL apoc.periodic.iterate(
+            "UNWIND $edge_list AS edge RETURN edge",
+            "MATCH (n) WHERE n.`{id_property}` = edge[0] MATCH (m) WHERE m.`{id_property}` = edge[1] OPTIONAL MATCH (n)-[rel]-(m) WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes WHERE NOT edge[2] IN relTypes CALL apoc.create.relationship(n, edge[2], NULL, m) YIELD rel RETURN rel",
+            {{
+                batchSize: {batch_size},
+                parallel: {str(parallel).lower()},
+                iterateList: {str(iterateList).lower()},
+                params: {{edge_list: $edge_list}}
+            }}
+        )
+        YIELD batches, total, timeTaken, committedOperations, failedOperations, failedBatches, retries, errorMessages, batch, operations, wasTerminated, failedParams, updateStatistics
+        RETURN batches, total, timeTaken, committedOperations, failedOperations, failedBatches, retries, errorMessages, batch, operations, wasTerminated, failedParams, updateStatistics
+    """
+    # cypher = (
+    #     "CALL apoc.periodic.iterate(",
+    #     '"UNWIND $edge_list AS edge RETURN edge"',
+    #     f'"MATCH (n) WHERE n.`{id_property}` = edge[0] MATCH (m) WHERE m.`{id_property}` = edge[1] OPTIONAL MATCH (n)-[rel]-(m) WITH n, m, edge, COLLECT(TYPE(rel)) AS relTypes WHERE NOT edge[2] IN relTypes CALL apoc.create.relationship(n, edge[2], NULL, m) YIELD rel"',
+    #     f"""{{
+    #         batchSize: {batch_size},
+    #         parallel: {str(parallel).lower()},
+    #         iterateList: {str(iterateList).lower()},
+    #         params: {{edge_list: $edge_list}}
+    #     }}""",
+    #     ")",
+    # )
+
+    print("Running query: ", cypher)
+
+    try:
+        res = tx.run(cypher, edge_list=edge_list)
+        print("Query ran successfully")
+        print(res.data())
+    except Exception as e:
+        print(e)
+        print("Cypher Query Ran: ", cypher)
+
+        raise e
     return res

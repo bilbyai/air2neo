@@ -208,9 +208,7 @@ class MetatableConfig:
             and airtable_base_id is not None
             and self.metatable_name is not None
         ):
-            self.init_table(
-                Table(airtable_api_key, airtable_base_id, self.metatable_name)
-            )
+            self.init_table(Table(airtable_api_key, airtable_base_id, self.metatable_name))
         else:
             self.logger.warning(
                 "No table provided and no Airtable API key, base ID, or metatable name provided. "
@@ -268,9 +266,7 @@ class MetatableConfig:
         """
         # _record = self.table.get(self.label_airtableid_map.get(label, None))
         self.logger.info("Validating column names in Airtable for label: %s", label)
-        _record = [
-            t for t in self.table_data if t["fields"].get(self.name_col, None) == label
-        ][0]
+        _record = [t for t in self.table_data if t["fields"].get(self.name_col, None) == label][0]
         columns_to_look_for = []
 
         columns_to_look_for += _record["fields"].get(self.index_for_col, [])
@@ -297,9 +293,7 @@ class MetatableConfig:
         )
         return False
 
-    def _create_column_instructions(
-        self, table_data: Sequence[Dict]
-    ) -> Dict[str, Dict[str, str]]:
+    def _create_column_instructions(self, table_data: Sequence[Dict]) -> Dict[str, Dict[str, str]]:
         """Create a map of column names to instructions for how to ingest that column.
 
         Args:
@@ -323,9 +317,7 @@ class MetatableConfig:
 
         return instructions
 
-    def _create_label_airtableid_map(
-        self, table_data: Sequence[Dict]
-    ) -> Dict[str, str]:
+    def _create_label_airtableid_map(self, table_data: Sequence[Dict]) -> Dict[str, str]:
         """Create a map of labels to airtable ids. What this means is that given a label name,
         like "Person", you can get the airtable id for that label in the Metatable, which is
         required for updating the last ingestion date for that label.
@@ -365,34 +357,34 @@ class MetatableConfig:
             ValueError: If airtableid is given but is not a valid airtable id.
         """
 
-        if label is None:
-            raise ValueError("Must provide label")
+        # if label is None:
+        #     raise ValueError("Must provide label")
 
-        airtableid = self.label_airtableid_map.get(label, None)
-        self.logger.info("Airtable record ID for label %s is %s", label, airtableid)
+        # airtableid = self.label_airtableid_map.get(label, None)
+        # self.logger.info("Airtable record ID for label %s is %s", label, airtableid)
 
-        if not airtableid:
-            raise ValueError(f"Could not find airtable id for label: {label}")
+        # if not airtableid:
+        #     raise ValueError(f"Could not find airtable id for label: {label}")
 
-        if not is_airtable_record_id(airtableid):
-            raise ValueError(f"{airtableid} is not a valid airtable record id")
+        # if not is_airtable_record_id(airtableid):
+        #     raise ValueError(f"{airtableid} is not a valid airtable record id")
 
-        column_to_update = self.ingestion_type_col_name_map.get(ingestionType, None)
+        # column_to_update = self.ingestion_type_col_name_map.get(ingestionType, None)
 
-        try:
-            result = self.table.update(
-                airtableid,
-                {column_to_update: get_airtable_timestamp_str(dt)},
-            )
-        except HTTPError as e:
-            self.logger.error("Error updating last ingestion date: %s", e)
-            raise e
-        self.logger.info(
-            "Updated last ingestion date for label %s (Record ID: %s) to value: %s",
-            label,
-            airtableid,
-            result["fields"][column_to_update],
-        )
+        # try:
+        #     result = self.table.update(
+        #         airtableid,
+        #         {column_to_update: get_airtable_timestamp_str(dt)},
+        #     )
+        # except HTTPError as e:
+        #     self.logger.error("Error updating last ingestion date: %s", e)
+        #     raise e
+        # self.logger.info(
+        #     "Updated last ingestion date for label %s (Record ID: %s) to value: %s",
+        #     label,
+        #     airtableid,
+        #     result["fields"][column_to_update],
+        # )
 
 
 class Air2Neo:
@@ -544,21 +536,19 @@ class Air2Neo:
                         IngestionUpdateType.node_properties,
                         datetime.datetime.now(),
                     )
-                    self.logger.info(
-                        "Merged %s nodes for table %s.", len(node_list), label
-                    )
+                    self.logger.info("Merged %s nodes for table %s.", len(node_list), label)
 
             # Create Edges
             for label, airtable_data in downloaded_airtables_tup:
                 self.logger.info('Creating edge dict for table "%s"...', label)
-                unmapped_edge_list = self._create_edge_list(
-                    airtable_data, instructions[label]
-                )
+                unmapped_edge_list = self._create_edge_list(airtable_data, instructions[label])
 
-                self.logger.info("Replacing Airtable IDs with translation IDs...")
-                edge_list = self._map_edge_list_translation_id(
-                    unmapped_edge_list, translation_id_mapping
-                )
+                # self.logger.info("Replacing Airtable IDs with translation IDs...")
+                # edge_list = self._map_edge_list_translation_id(
+                #     unmapped_edge_list, translation_id_mapping
+                # )
+
+                edge_list = unmapped_edge_list
 
                 with session.begin_transaction() as tx:
                     self.logger.info(
@@ -577,9 +567,7 @@ class Air2Neo:
                         IngestionUpdateType.edges,
                         datetime.datetime.now(),
                     )
-                    self.logger.info(
-                        "Merged %s edges for table %s.", len(edge_list), label
-                    )
+                    self.logger.info("Merged %s edges for table %s.", len(edge_list), label)
 
         # Close driver
         self.neo4j_driver.close()
@@ -692,21 +680,15 @@ class Air2Neo:
                 to be created in Neo4j.
         """
 
-        def create_node_dict(
-            record: Dict, node_property_columns: Sequence[str]
-        ) -> Dict:
-            d = {
-                k: v for k, v in record["fields"].items() if k in node_property_columns
-            }
+        def create_node_dict(record: Dict, node_property_columns: Sequence[str]) -> Dict:
+            d = {k: v for k, v in record["fields"].items() if k in node_property_columns}
             d[self.metatable_config.airtable_id_property_in_neo4j] = id_mapping.get(
                 record["id"], record["id"]
             )
             return d
 
         node_property_columns = instructions["NodeProperties"]
-        node_list = [
-            create_node_dict(record, node_property_columns) for record in airtable_data
-        ]
+        node_list = [create_node_dict(record, node_property_columns) for record in airtable_data]
 
         return node_list
 
@@ -734,9 +716,7 @@ class Air2Neo:
         edge_list = []
         for record in airtable_data:
             for edge_name in edges_columns:
-                edge_name_formatted = self.metatable_config.format_edge_col_name(
-                    edge_name
-                )
+                edge_name_formatted = self.metatable_config.format_edge_col_name(edge_name)
                 if edge_name in record["fields"]:
                     for target_id in record["fields"][edge_name]:
                         edge_list.append([record["id"], target_id, edge_name_formatted])
@@ -771,9 +751,7 @@ class Air2Neo:
                 constraint_for_columns = instructions["ConstrainFor"]
                 if len(constraint_for_columns) > 0:
                     with session.begin_transaction() as tx:
-                        neo4jop_create_constraint_for_label(
-                            tx, label, constraint_for_columns
-                        )
+                        neo4jop_create_constraint_for_label(tx, label, constraint_for_columns)
                         tx.commit()
                         self.logger.info("Created constraints for label %s", label)
                 else:

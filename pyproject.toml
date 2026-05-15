@@ -7,3 +7,11 @@ build-backend = "setuptools.build_meta"
 line-length = 88
 target-version = ['py38']
 include = '\.pyi?$'
+
+[project]
+name = "air2neo"
+version = "2.1.1"
+description = "Airtable to Neo4j"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
