@@ -1,48 +1,45 @@
-.PHONY: test docs setup
+.PHONY: test setup release release-test bump tox coverage lint format clean
 
 usage:
 	cat Makefile
 
 setup:
 	git config core.hooksPath scripts/githooks
-	pip install -e .
-	pip install -r requirements-test.txt -r requirements-dev.txt
+	uv sync --group dev
 
 release:
 	make clean
-	python -m build --sdist --wheel --outdir ./dist
-	twine upload ./dist/*
+	uv build --no-sources --sdist --wheel --out-dir ./dist
+	uv publish ./dist/*
 
 release-test:
 	make clean
-	python -m build --sdist --wheel --outdir ./dist
-	twine upload --repository testpypi ./dist/*
+	uv build --no-sources --sdist --wheel --out-dir ./dist
+	uv publish --index testpypi ./dist/*
 
 bump:
-	@bash -c "./scripts/bump.sh"
+	uv version --bump patch
 
 test:
-	pytest -v -m 'not integration'
+	uv run pytest -v -m 'not integration'
 
 test-e2e:
-	pytest -v
+	uv run pytest -v
 
 tox:
-	tox -e py
+	uv run tox -e py
 
 coverage:
-	pytest --cov=air2neo --cov-report=html
+	uv run pytest --cov=air2neo --cov-report=html
 	open htmlcov/index.html
 
 lint:
-	flake8 .
-	black --diff .
+	uv run ruff format --check .
+	uv run ruff check .
 
 format:
-	black .
-
-docs:
-	@bash -c "./scripts/build_docs.sh"
+	uv run ruff format .
+	uv run ruff check --fix .
 
 clean:
-	@bash -c "./scripts/clean.sh"
+	rm -rf dist build *.egg-info

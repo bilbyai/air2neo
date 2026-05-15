@@ -356,7 +356,7 @@ class MetatableConfig:
         self,
         label: str,
         ingestionType: IngestionUpdateType,
-        dt: datetime.datetime = datetime.datetime.now(),
+        dt: Optional[datetime.datetime] = None,
     ) -> None:
         """Update the last ingestion date for a label in the Metatable.
 
@@ -374,6 +374,9 @@ class MetatableConfig:
             ValueError: If label is given but a airtable record for that label could not be found.
             ValueError: If airtableid is given but is not a valid airtable id.
         """
+
+        if dt is None:
+            dt = datetime.datetime.now()
 
         if label is None:
             raise ValueError("Must provide label")

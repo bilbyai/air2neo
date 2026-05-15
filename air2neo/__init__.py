@@ -1,4 +1,9 @@
-__version__ = "2.2.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("air2neo")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
 
 from .main import Air2Neo, IngestionUpdateType, MetatableConfig
 

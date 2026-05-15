@@ -55,7 +55,44 @@ a2n.run()
 ```
 ## Installation
 ```bash
-$ pip install air2neo
+pip install air2neo
+```
+
+## Run the migration
+Set the required environment variables, either in your shell or in a `.env` file:
+
+```bash
+AIRTABLE_API_KEY=
+AIRTABLE_BASE_ID=
+AIRTABLE_METATABLE_NAME=Metatable
+NEO4J_URI=
+NEO4J_USERNAME=
+NEO4J_PASSWORD=
+```
+
+Run the migration directly with uvx:
+
+```bash
+uvx air2neo
+```
+
+To use an explicit command name:
+
+```bash
+uvx --from air2neo air2neo-migrate
+```
+
+For local development:
+
+```bash
+uv sync --group dev
+uv run air2neo
+```
+
+## Release
+```bash
+uv build --no-sources --sdist --wheel --out-dir dist/
+uv publish dist/*
 ```
 ## Documentation
 To be implemented. For now, please look at the code docstrings. Sorry about that!
