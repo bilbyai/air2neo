@@ -1,3 +1,5 @@
+BUMP ?= patch
+
 .PHONY: test setup release release-test bump tox coverage lint format clean
 
 usage:
@@ -16,9 +18,6 @@ release-test:
 	make clean
 	uv build --no-sources --sdist --wheel --out-dir ./dist
 	uv publish --index testpypi ./dist/*
-
-bump:
-	uv version --bump patch
 
 test:
 	uv run pytest -v -m 'not integration'

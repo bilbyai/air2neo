@@ -115,6 +115,18 @@ uv run air2neo
 
 ## Release
 ```bash
+uv version --bump patch
+git add pyproject.toml uv.lock
+git commit -m "Bump version to $(uv version --short)"
+git push origin main
+```
+
+Pushing a bumped version to `main` publishes the package to PyPI after CI passes.
+The publish job checks PyPI first, so pushes that do not change the version are skipped.
+
+You can also publish locally:
+
+```bash
 uv build --no-sources --sdist --wheel --out-dir dist/
 uv publish dist/*
 ```
